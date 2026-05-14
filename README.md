@@ -59,11 +59,15 @@ ConvertX erstellt beim ersten Zugriff den initialen Benutzer. `ACCOUNT_REGISTRAT
 
 Uptime Kuma benötigt beim ersten Aufruf ein eigenes Admin-Konto.
 
+Details zur manuellen Einrichtung lokaler Monitore stehen in [docs/uptime-kuma.md](docs/uptime-kuma.md).
+
 ## Backups
 
 `scripts/backup.sh` erstellt lokale, zeitgestempelte Backups unter `backups/` und erzeugt einen PostgreSQL-Dump, sofern der DB-Container läuft. Wenn `RESTIC_REPOSITORY` und `RESTIC_PASSWORD` gesetzt sind, wird zusätzlich ein verschlüsseltes restic-Backup ausgeführt.
 
 `.env` wird standardmäßig nicht gesichert. Setze `INCLUDE_ENV_IN_BACKUP=true` nur bewusst, weil die Datei sensible Secrets enthält.
+
+Ein isolierter Restore-Test ohne Eingriff in den produktiven Stack ist in [docs/restore-test.md](docs/restore-test.md) beschrieben.
 
 ## Sicherheit
 
