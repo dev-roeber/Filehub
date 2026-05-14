@@ -2,66 +2,74 @@
 
 Stand: 2026-05-14. ConvertX laeuft auf `127.0.0.1:3000` mit Tools
 ffmpeg/ffprobe, pandoc, LibreOffice, ImageMagick, GraphicsMagick, vips,
-Inkscape im Container.
+Inkscape, libheif im Container.
 
 Status-Spalte:
 
-- **OK** — in der UI erfolgreich getestet
-- **manuell offen** — Toolchain vorhanden, aber UI-Test steht noch aus
+- **OK** — automatisiert per HTTP-API erfolgreich konvertiert (`scripts/convertx-e2e-run.sh`)
+- **manuell offen** — Toolchain vorhanden, automatischer Lauf steht aus
 - **nicht unterstuetzt** — Toolchain im Container nicht vorhanden
-- **nicht getestet** — Variante nicht im Standard-Testplan
 
 Testdateien siehe `scripts/prepare-convertx-test-files.sh` -> `data/convertx-test/input/`.
+Outputs aus dem E2E-Lauf liegen in `data/convertx-test/output/` (gitignored).
 
 ## Bilder
 
-| Quelle | Ziel | Status | Bemerkung | Risiko |
-|---|---|---|---|---|
-| PNG | WEBP | manuell offen | ImageMagick + vips | niedrig |
-| JPG | PNG | manuell offen | ImageMagick | niedrig |
-| JPG | WEBP | manuell offen | ImageMagick | niedrig |
-| WEBP | JPG | manuell offen | ImageMagick | niedrig |
-| HEIC | JPG | manuell offen | Foto vom iPhone als Source nutzen | niedrig |
-| SVG | PNG | manuell offen | Inkscape vorhanden | niedrig |
-| PNG | PDF | manuell offen | ImageMagick | niedrig |
+| Quelle | Ziel | Status | Converter | Output | Bemerkung |
+|---|---|---|---|---|---|
+| PNG | WEBP | OK | imagemagick | 1.4 KB | |
+| JPG | PNG | OK | imagemagick | 8.6 KB | |
+| JPG | WEBP | OK | imagemagick | 2.5 KB | |
+| SVG | PNG | OK | inkscape | 1.8 KB | |
+| HEIC | JPEG | OK | libheif | 404 KB | Source: libheif Beispieldatei |
+| WEBP | JPG | manuell offen | imagemagick | — | Toolchain vorhanden |
+| PNG | PDF | manuell offen | imagemagick | — | Toolchain vorhanden |
 
 ## Dokumente
 
-| Quelle | Ziel | Status | Bemerkung | Risiko |
-|---|---|---|---|---|
-| DOCX | PDF | manuell offen | LibreOffice headless | mittel |
-| TXT | PDF | manuell offen | pandoc + LibreOffice | niedrig |
-| MD | PDF | manuell offen | pandoc | niedrig |
-| MD | HTML | manuell offen | pandoc | niedrig |
-| CSV | JSON | manuell offen | nur, wenn ConvertX UI das anbietet | niedrig |
-| PDF | JPG | manuell offen | ImageMagick + Ghostscript | niedrig |
-| PDF | PNG | manuell offen | ImageMagick + Ghostscript | niedrig |
-| EPUB | PDF | manuell offen | pandoc | mittel |
-| HTML | PDF | manuell offen | pandoc/LibreOffice | mittel |
+| Quelle | Ziel | Status | Converter | Output | Bemerkung |
+|---|---|---|---|---|---|
+| DOCX | PDF | OK | libreoffice | 23.6 KB | |
+| TXT | PDF | OK | libreoffice | 14.8 KB | |
+| MD | PDF | OK | pandoc | 6.7 KB | |
+| MD | HTML | OK | pandoc | 108 B | |
+| PDF | PNG | OK | imagemagick | 4.2 KB | |
+| CSV | JSON | manuell offen | dasel | — | |
+| EPUB | PDF | manuell offen | calibre/pandoc | — | |
+| HTML | PDF | manuell offen | libreoffice/pandoc | — | |
 
 ## Audio
 
-| Quelle | Ziel | Status | Bemerkung | Risiko |
-|---|---|---|---|---|
-| WAV | MP3 | manuell offen | ffmpeg | niedrig |
-| MP3 | OGG | manuell offen | ffmpeg | niedrig |
-| M4A | MP3 | manuell offen | iPhone-Aufnahme als Source | niedrig |
+| Quelle | Ziel | Status | Converter | Output | Bemerkung |
+|---|---|---|---|---|---|
+| WAV | MP3 | OK | ffmpeg | 4.5 KB | nach FFMPEG_ARGS-Fix |
+| WAV | OGG | OK | ffmpeg | 4.8 KB | nach FFMPEG_ARGS-Fix |
+| M4A | MP3 | manuell offen | ffmpeg | — | iPhone-Aufnahme als Source |
 
 ## Video
 
-| Quelle | Ziel | Status | Bemerkung | Risiko |
-|---|---|---|---|---|
-| MP4 | WEBM | manuell offen | ffmpeg, kurze Clips (< 30s) | mittel |
-| MOV | MP4 | manuell offen | ffmpeg | mittel |
-| WEBM | MP4 | manuell offen | ffmpeg | mittel |
-| MP4 | GIF | manuell offen | ffmpeg, sehr kurze Clips | hoch (RAM bei vielen Frames) |
+| Quelle | Ziel | Status | Converter | Output | Bemerkung |
+|---|---|---|---|---|---|
+| MP4 | WEBM | OK | ffmpeg | 9.7 KB | 2s Clip |
+| MP4 | GIF | OK | ffmpeg | 99 KB | 2s Clip |
+| MOV | MP4 | manuell offen | ffmpeg | — | iPhone-Clip als Source |
+| WEBM | MP4 | manuell offen | ffmpeg | — | |
+
+## Wichtiger Fix: FFMPEG_ARGS
+
+ConvertX setzt `FFMPEG_ARGS` VOR `-i`, nicht hinter. `-preset veryfast`
+ist deshalb keine Encoding-Option mehr, sondern wird als ungueltige
+Decoding-Option interpretiert. ffmpeg bricht damit alle Audio-Conversions
+ab ("Codec AVOption preset (Encoding preset) is not a decoding option").
+
+Konsequenz: `CONVERTX_FFMPEG_ARGS=""` (leer) in `.env` und `.env.example`,
+`compose.convertx.yml` mit `${CONVERTX_FFMPEG_ARGS:-}` als Default.
+Video laeuft auch ohne Preset stabil.
 
 ## Sicherheitshinweise
 
-- Keine Hardware-Acceleration aktiv. `CONVERTX_FFMPEG_ARGS=-preset veryfast`
-  haelt CPU-Last in vertretbarem Rahmen.
-- ConvertX-Container hat `cpus: 2.0` und `mem_limit: 4g`. Damit kann ein
-  einzelner Konvertierungslauf den Host nicht voll auslasten.
+- Keine Hardware-Acceleration aktiv.
+- ConvertX-Container hat `cpus: 2.0` und `mem_limit: 4g`.
 - `MAX_CONVERT_PROCESS=2`: maximal zwei parallele Jobs.
 - Video-Massentests sind explizit nicht vorgesehen.
 

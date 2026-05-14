@@ -39,7 +39,7 @@ docker exec filehub-convertx sh -c "ffmpeg -y -hide_banner -loglevel error -f la
 echo "[7/8] MP4 (2s, 320x240, 10fps)"
 docker exec filehub-convertx sh -c "ffmpeg -y -hide_banner -loglevel error -f lavfi -i 'testsrc=duration=2:size=320x240:rate=10' -pix_fmt yuv420p $TMP/test.mp4"
 
-echo "[8/8] SVG"
+echo "[8/9] SVG"
 docker exec filehub-convertx sh -c "cat > $TMP/test.svg <<EOF
 <svg xmlns='http://www.w3.org/2000/svg' width='200' height='100'>
   <rect width='200' height='100' fill='lightblue'/>
@@ -47,7 +47,15 @@ docker exec filehub-convertx sh -c "cat > $TMP/test.svg <<EOF
 </svg>
 EOF"
 
-for f in test.png test.jpg test.pdf test.txt test.md test.csv test.docx test.wav test.mp4 test.svg; do
+echo "[9/9] HEIC (libheif Beispieldatei, falls Netz verfuegbar)"
+if curl -sSfL --max-time 10 -o /tmp/sample.heic 'https://github.com/strukturag/libheif/raw/master/examples/example.heic'; then
+  docker cp /tmp/sample.heic "filehub-convertx:$TMP/test.heic"
+  rm -f /tmp/sample.heic
+else
+  echo "WARN: HEIC-Sample nicht abrufbar (offline?) - test.heic faellt aus"
+fi
+
+for f in test.png test.jpg test.pdf test.txt test.md test.csv test.docx test.wav test.mp4 test.svg test.heic; do
   docker cp "filehub-convertx:$TMP/$f" "$OUT/$f" 2>/dev/null || echo "WARN: $f nicht kopiert"
 done
 

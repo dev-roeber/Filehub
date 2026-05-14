@@ -14,7 +14,9 @@ services:
       AUTO_DELETE_EVERY_N_HOURS: ${CONVERTX_AUTO_DELETE_EVERY_N_HOURS:-24}
       HIDE_HISTORY: ${CONVERTX_HIDE_HISTORY:-false}
       LANGUAGE: ${CONVERTX_LANGUAGE:-de}
-      FFMPEG_ARGS: ${CONVERTX_FFMPEG_ARGS:--preset veryfast}
+      # FFMPEG_ARGS wird vor `-i` eingefuegt; -preset bricht Audio-Konvertierungen.
+      # Leer lassen, sonst lehnt ffmpeg z.B. WAV als Input ab.
+      FFMPEG_ARGS: ${CONVERTX_FFMPEG_ARGS:-}
       MAX_CONVERT_PROCESS: "2"
     volumes:
       - ./data/convertx:/app/data
