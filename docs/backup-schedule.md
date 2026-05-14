@@ -40,6 +40,17 @@ just backup-run-now
 
 Das startet `filehub-backup.service` sofort. Wenn bereits ein Lauf aktiv ist, blockiert `flock` und der zweite Lauf wird abgebrochen.
 
+Pruefablauf nach manuellem Lauf:
+
+```bash
+systemctl status filehub-backup.service --no-pager
+just backup-logs
+set -a && . .env && set +a
+restic snapshots
+```
+
+Ein konkretes Lauf-Ergebnis ist in `docs/backup-manual-run-result-20260514.md` dokumentiert.
+
 ## Logs
 
 ```bash
@@ -79,6 +90,13 @@ restic forget --dry-run \
 ```
 
 Erst nach bewusster Pruefung Opt-in setzen.
+
+Wichtig: `scripts/backup.sh` uebergibt `backups/<timestamp>` an restic. Dadurch hat jeder Lauf einen eigenen Pfad und restic gruppiert per `(host, paths, tags)` jeden Snapshot in eine eigene Gruppe. Folge: Ein nackter `restic forget --keep-*` greift effektiv nicht. Bevor Retention aktiviert wird, entweder:
+
+- `--group-by host,tags` setzen, damit der wechselnde Pfad fuer die Gruppierung ignoriert wird, oder
+- restic-backup-Aufrufe um stabile Tags ergaenzen (z. B. `--tag filehub-daily`) und mit `--group-by tags` arbeiten.
+
+Retention erst nach separater Freigabe aktivieren. Vor jeder Aenderung erneut `--dry-run`.
 
 ## Restore-Test-Intervall
 

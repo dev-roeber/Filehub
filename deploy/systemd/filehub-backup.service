@@ -9,9 +9,9 @@ Type=oneshot
 User=sebastian
 Group=sebastian
 WorkingDirectory=/home/sebastian/Repos/Filehub
-Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PATH=/home/linuxbrew/.linuxbrew/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=HOME=/home/sebastian
-ExecStart=/usr/bin/flock -n /tmp/filehub-backup.lock /home/sebastian/Repos/Filehub/scripts/backup.sh
+ExecStart=/home/sebastian/Repos/Filehub/scripts/backup.sh
 TimeoutStartSec=2h
 Nice=10
 IOSchedulingClass=best-effort
