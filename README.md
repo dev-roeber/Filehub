@@ -69,6 +69,8 @@ Details zur manuellen Einrichtung lokaler Monitore stehen in [docs/uptime-kuma.m
 
 Ein isolierter Restore-Test ohne Eingriff in den produktiven Stack ist in [docs/restore-test.md](docs/restore-test.md) beschrieben.
 
+Ein automatischer Zeitplan via systemd-Timer ist in [docs/backup-schedule.md](docs/backup-schedule.md) beschrieben.
+
 Das vorbereitete Cloud-Ziel ist `RESTIC_REPOSITORY=rclone:gdrive:backups/filehub`. Die restic-Passphrase liegt nur in `.env` und muss extern in einem Passwortmanager gesichert werden. Retention/Prune wird nicht automatisch ausgefuehrt; `RESTIC_APPLY_RETENTION=true` ist ein bewusster Opt-in.
 
 ## Sicherheit

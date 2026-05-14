@@ -1,0 +1,13 @@
+[Unit]
+Description=Filehub Backup Timer (taeglich, konservativ)
+Documentation=file:///home/sebastian/Repos/Filehub/docs/backup-schedule.md
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=30min
+Persistent=true
+Unit=filehub-backup.service
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

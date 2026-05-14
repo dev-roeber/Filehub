@@ -1,0 +1,28 @@
+[Unit]
+Description=Filehub Backup (lokal + restic Cloud)
+Documentation=file:///home/sebastian/Repos/Filehub/docs/backup-schedule.md
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+User=sebastian
+Group=sebastian
+WorkingDirectory=/home/sebastian/Repos/Filehub
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=HOME=/home/sebastian
+ExecStart=/usr/bin/flock -n /tmp/filehub-backup.lock /home/sebastian/Repos/Filehub/scripts/backup.sh
+TimeoutStartSec=2h
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+StandardOutput=journal
+StandardError=journal
+
+# Hardening: User=sebastian liefert die Basisrechte. Kein ProtectHome,
+# weil restic auf ~/.cache/restic und ~/.config/rclone zugreifen muss.
+NoNewPrivileges=true
+PrivateTmp=false
+
+[Install]
+WantedBy=multi-user.target

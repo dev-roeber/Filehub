@@ -3,6 +3,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+LOCK_FILE="${BACKUP_LOCK_FILE:-/tmp/filehub-backup.lock}"
+if [[ "${BACKUP_LOCK_ACQUIRED:-}" != "1" ]]; then
+  exec env BACKUP_LOCK_ACQUIRED=1 flock -n "$LOCK_FILE" "$0" "$@" || {
+    echo "ERROR: Ein anderer Backup-Lauf haelt bereits $LOCK_FILE. Abbruch." >&2
+    exit 1
+  }
+fi
+
 if [[ ! -f .env ]]; then
   echo "ERROR: .env fehlt." >&2
   exit 1

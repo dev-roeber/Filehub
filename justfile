@@ -46,5 +46,26 @@ update:
 backup:
     ./scripts/backup.sh
 
+backup-install-timer:
+    sudo install -m 0644 deploy/systemd/filehub-backup.service /etc/systemd/system/filehub-backup.service
+    sudo install -m 0644 deploy/systemd/filehub-backup.timer /etc/systemd/system/filehub-backup.timer
+    sudo systemctl daemon-reload
+
+backup-enable-timer:
+    sudo systemctl enable --now filehub-backup.timer
+
+backup-disable-timer:
+    sudo systemctl disable --now filehub-backup.timer
+
+backup-timer-status:
+    systemctl status filehub-backup.timer --no-pager
+    systemctl list-timers filehub-backup.timer --no-pager
+
+backup-logs:
+    journalctl -u filehub-backup.service -n 200 --no-pager
+
+backup-run-now:
+    sudo systemctl start filehub-backup.service
+
 tunnel-help:
     @echo "ssh -L 3000:127.0.0.1:3000 -L 8000:127.0.0.1:8000 -L 9999:127.0.0.1:9999 -L 3001:127.0.0.1:3001 -L 3002:127.0.0.1:3002 sebastian@SERVER_IP"
