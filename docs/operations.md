@@ -59,3 +59,30 @@ du -sh data backups
 ```
 
 Kein Script verwendet `docker compose down -v`.
+
+## Tika Healthcheck
+
+`paperless-tika` hat seit der Hardening-Stufe einen Docker-Healthcheck. Tika selbst bringt kein `curl` und kein `wget` mit; der Check nutzt deshalb `bash` mit `/dev/tcp/localhost/9998` und prueft die HTTP-Antwortzeile. Dadurch erscheint Tika in `docker compose ps` mit `(healthy)` und blockt Paperless beim Start nicht unnoetig (`condition: service_healthy`).
+
+Falls der Check unerwartet `unhealthy` meldet, manuell pruefen:
+
+```bash
+docker exec filehub-paperless-tika bash -c 'timeout 5 bash -c "exec 3<>/dev/tcp/localhost/9998 && printf \"GET / HTTP/1.0\\r\\n\\r\\n\" >&3 && head -1 <&3"'
+```
+
+Erwartet wird `HTTP/1.1 200 OK`.
+
+## Operative just-Befehle
+
+Zusaetzlich zu Start/Stopp gibt es Befehle fuer Backup, Snapshots und Security:
+
+```bash
+just snapshots                  # restic snapshots --compact
+just backup-dry-run-retention   # Retention-Vorschau, kein Loeschen
+just backup-check               # restic check
+just backup-restore-smoke-info  # Pfade und Doku-Verweise
+just ports                      # Listening-Ports auf 127.0.0.1 und 0.0.0.0
+just security-check             # doctor + Verweis auf docs/security.md
+```
+
+Diese Befehle geben keine Secrets aus.

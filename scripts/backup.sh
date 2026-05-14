@@ -82,4 +82,24 @@ else
   echo "Restic ist nicht konfiguriert. Lokales Backup-Paket wurde vorbereitet."
 fi
 
+echo "----- Backup-Zusammenfassung -----"
+echo "Lokaler Backup-Pfad: $backup_dir"
+echo "Erzeugte Artefakte:"
+for f in "$backup_dir"/*; do
+  name="$(basename "$f")"
+  case "$name" in
+    env.SENSITIVE) echo "  - $name  [sensible Datei, nicht ausgegeben]" ;;
+    *) size="$(du -h "$f" 2>/dev/null | awk '{print $1}')"; echo "  - $name  ($size)" ;;
+  esac
+done
+if [[ -n "${RESTIC_REPOSITORY:-}" && -n "${RESTIC_PASSWORD:-}" ]]; then
+  latest_id="$(restic snapshots --tag filehub-full --latest 1 --json 2>/dev/null | sed -n 's/.*"short_id":"\([^"]*\)".*/\1/p' | head -1)"
+  if [[ -n "$latest_id" ]]; then
+    echo "Neuester restic-Snapshot (Tag filehub-full): $latest_id"
+  fi
+fi
+if [[ "${RESTIC_APPLY_RETENTION:-false}" != "true" ]]; then
+  echo "Hinweis: Restic-Retention bleibt deaktiviert (RESTIC_APPLY_RETENTION!=true)."
+fi
+echo "----------------------------------"
 echo "Backup abgeschlossen: $backup_dir"

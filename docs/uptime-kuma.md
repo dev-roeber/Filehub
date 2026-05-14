@@ -22,9 +22,43 @@ Der Container ist im Docker-Netzwerk `filehub_net` und kann die anderen Filehub-
    http://127.0.0.1:3002
    ```
 
-3. Das initiale Admin-Konto in der Uptime-Kuma-Oberflaeche anlegen.
+3. Sprache und Zeitzone waehlen.
+4. Admin-Konto anlegen: Username + starkes Passwort.
+5. Passwort nur in einem Passwortmanager speichern. Keine Admin-Zugangsdaten in `.env`, Doku-Dateien oder Git ablegen.
+6. Nach Login: Settings -> General -> Timezone auf `Europe/Berlin`, Theme nach Wunsch.
+7. Settings -> Security -> Disable Auth bleibt `off`.
 
-4. Das Passwort nur in einem Passwortmanager speichern. Keine Admin-Zugangsdaten in `.env`, Doku-Dateien oder Git ablegen.
+## Monitor Anlegen: Klick-Anleitung
+
+Fuer jeden Monitor in der Tabelle weiter unten:
+
+1. Dashboard -> `Add New Monitor`.
+2. Monitor Type:
+   - `HTTP(s)` fuer URLs (siehe HTTP-Liste).
+   - `TCP Port` fuer DB/Cache (siehe TCP-Liste).
+3. Friendly Name: aus Tabelle uebernehmen, z. B. `Filehub Paperless`.
+4. URL bzw. Hostname/Port: aus Tabelle uebernehmen.
+5. Heartbeat Interval: `60` Sekunden.
+6. Retries: `2`.
+7. Heartbeat Retry Interval: `30` Sekunden.
+8. Request Timeout: `10` Sekunden.
+9. Accepted Status Codes (HTTP): `200-299` und `300-399`.
+10. Tags: ein einheitlicher Tag pro Stack, z. B. `filehub`.
+11. Notifications: vorerst leer lassen, bis alle Monitore stabil gruen sind.
+12. `Save`.
+
+Pruefe nach jedem Anlegen, dass der erste Heartbeat innerhalb von 1-2 Minuten gruen wird. Wenn nicht, Logs in Dozzle (`http://127.0.0.1:9999`) pruefen und ggf. die Fallback-URL aus dem Abschnitt unten verwenden.
+
+## Gruppen
+
+Optional in Uptime Kuma:
+
+- `Filehub Core`: Paperless, ConvertX, Homepage.
+- `Filehub Internal`: Gotenberg, Tika.
+- `Filehub Observability`: Dozzle, Uptime Kuma Self.
+- `Filehub Data`: PostgreSQL, Redis.
+
+Gruppe via `Add New Monitor -> Type: Group` und Monitore in der Sidebar per Drag and Drop einordnen.
 
 ## Monitore
 

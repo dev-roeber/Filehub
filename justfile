@@ -67,5 +67,27 @@ backup-logs:
 backup-run-now:
     sudo systemctl start filehub-backup.service
 
+snapshots:
+    @set -a && . ./.env && set +a && restic snapshots --compact
+
+backup-dry-run-retention:
+    @set -a && . ./.env && set +a && restic forget --tag filehub-full --group-by host,tags --keep-daily "${BACKUP_RETENTION_DAILY:-7}" --keep-weekly "${BACKUP_RETENTION_WEEKLY:-4}" --keep-monthly "${BACKUP_RETENTION_MONTHLY:-6}" --dry-run --compact
+
+backup-check:
+    @set -a && . ./.env && set +a && restic check
+
+backup-restore-smoke-info:
+    @echo "Restore-Smoke-Pfad: /home/sebastian/Repos/Filehub-restic-restore-smoke"
+    @echo "Ablauf siehe docs/restore-test.md und docs/cloud-backup-result-*.md"
+
+ports:
+    @ss -tlnp 2>/dev/null | awk 'NR==1 || /127\.0\.0\.1|0\.0\.0\.0/' || sudo ss -tlnp
+
+security-check:
+    ./scripts/doctor.sh
+    @echo "---"
+    @echo "UFW-Status und Public Bindings sind oben aufgefuehrt."
+    @echo "Pruefe zusaetzlich: docs/security.md"
+
 tunnel-help:
     @echo "ssh -L 3000:127.0.0.1:3000 -L 8000:127.0.0.1:8000 -L 9999:127.0.0.1:9999 -L 3001:127.0.0.1:3001 -L 3002:127.0.0.1:3002 sebastian@SERVER_IP"
