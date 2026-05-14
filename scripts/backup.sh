@@ -65,10 +65,16 @@ if [[ -n "${RESTIC_REPOSITORY:-}" && -n "${RESTIC_PASSWORD:-}" ]]; then
     echo "ERROR: Restic-Repository ist nicht initialisiert oder nicht erreichbar. Fuehre restic init bewusst separat aus." >&2
     exit 1
   fi
-  restic backup "$backup_dir" data/paperless data/convertx config docs scripts compose.yml compose.paperless.yml compose.convertx.yml compose.observability.yml .env.example README.md
+  restic backup --tag filehub-full "$backup_dir" data/paperless data/convertx config docs scripts compose.yml compose.paperless.yml compose.convertx.yml compose.observability.yml .env.example README.md
   if [[ "${RESTIC_APPLY_RETENTION:-false}" == "true" ]]; then
-    echo "RESTIC_APPLY_RETENTION=true. Wende restic retention mit prune an."
-    restic forget --keep-daily "${BACKUP_RETENTION_DAILY:-7}" --keep-weekly "${BACKUP_RETENTION_WEEKLY:-4}" --keep-monthly "${BACKUP_RETENTION_MONTHLY:-6}" --prune
+    echo "RESTIC_APPLY_RETENTION=true. Wende restic retention mit prune an (nur Tag filehub-full)."
+    restic forget \
+      --tag filehub-full \
+      --group-by host,tags \
+      --keep-daily "${BACKUP_RETENTION_DAILY:-7}" \
+      --keep-weekly "${BACKUP_RETENTION_WEEKLY:-4}" \
+      --keep-monthly "${BACKUP_RETENTION_MONTHLY:-6}" \
+      --prune
   else
     echo "Restic retention/prune wird nicht automatisch angewendet. Setze RESTIC_APPLY_RETENTION=true nur bewusst."
   fi

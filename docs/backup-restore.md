@@ -64,11 +64,19 @@ Retention und `prune` werden nicht automatisch bei jedem Backup ausgefuehrt. Das
 RESTIC_APPLY_RETENTION=true
 ```
 
-Vor jeder produktiven Retention sollte zuerst ein Dry-Run erfolgen:
+Volle Filehub-Backups werden seit der Tag-Umstellung mit `--tag filehub-full` markiert. Retention ist auf diese Gruppe begrenzt; Smoke-Test-Snapshots (`filehub-smoke-test`) bleiben dadurch ausserhalb der Retention.
+
+Vor jeder produktiven Retention zuerst Dry-Run:
 
 ```bash
-restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --dry-run
+restic forget \
+  --tag filehub-full \
+  --group-by host,tags \
+  --keep-daily 7 --keep-weekly 4 --keep-monthly 6 \
+  --dry-run
 ```
+
+Details und Hintergrund stehen in [retention-policy.md](retention-policy.md).
 
 ## Kosten und Risiken
 

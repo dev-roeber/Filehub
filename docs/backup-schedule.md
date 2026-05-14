@@ -91,10 +91,7 @@ restic forget --dry-run \
 
 Erst nach bewusster Pruefung Opt-in setzen.
 
-Wichtig: `scripts/backup.sh` uebergibt `backups/<timestamp>` an restic. Dadurch hat jeder Lauf einen eigenen Pfad und restic gruppiert per `(host, paths, tags)` jeden Snapshot in eine eigene Gruppe. Folge: Ein nackter `restic forget --keep-*` greift effektiv nicht. Bevor Retention aktiviert wird, entweder:
-
-- `--group-by host,tags` setzen, damit der wechselnde Pfad fuer die Gruppierung ignoriert wird, oder
-- restic-backup-Aufrufe um stabile Tags ergaenzen (z. B. `--tag filehub-daily`) und mit `--group-by tags` arbeiten.
+Die fruehere Pfad-Form `backups/<timestamp>` hat dazu gefuehrt, dass jeder Lauf eine eigene restic-Gruppe bildete und Retention nicht griff. `scripts/backup.sh` setzt jetzt `restic backup --tag filehub-full`, und die Retention im Script verwendet `--tag filehub-full --group-by host,tags`. Smoke-Snapshots (`filehub-smoke-test`) liegen ausserhalb dieser Gruppe und werden nicht beruehrt. Details in [retention-policy.md](retention-policy.md).
 
 Retention erst nach separater Freigabe aktivieren. Vor jeder Aenderung erneut `--dry-run`.
 
