@@ -75,6 +75,44 @@ Status nach Lauf in der Uptime-Kuma-UI pruefen. Erster Heartbeat sollte innerhal
 
 Wenn das Script mit `Incorrect username or password.` abbricht, ist meist der Username nicht `admin`, sondern der waehrend des initialen Setups gewaehlte Name. Korrektur in `.secrets/uptime-kuma.env`, dann erneut starten.
 
+### Username Sicher Aus DB Pruefen
+
+Wenn der Username vergessen wurde, kann er direkt aus `data/uptime-kuma/kuma.db` gelesen werden. Es werden nur `id` und `username` ausgegeben, keine Passwort-Hashes:
+
+```bash
+sqlite3 data/uptime-kuma/kuma.db "SELECT id, username FROM user;"
+```
+
+Achtung: Wenn der Container laeuft und im WAL-Modus schreibt, kann das Schreiben aus dem Host gegen die DB blockiert sein. Fuer reines Lesen ist das ok.
+
+Beim initialen Setup kann es vorkommen, dass Uptime Kuma einen trailing space im Username speichert. In dem Fall hilft:
+
+```bash
+docker stop filehub-uptime-kuma
+sqlite3 data/uptime-kuma/kuma.db "UPDATE user SET username = TRIM(username) WHERE id = 1;"
+docker start filehub-uptime-kuma
+```
+
+### Passwort Vergessen
+
+Reset ueber das offizielle Tool ist interaktiv und haengt im offline-Container am Socket-Disconnect. Stattdessen kann der Hash direkt geschrieben werden, sobald der Container gestoppt ist:
+
+```bash
+docker stop filehub-uptime-kuma
+PW="$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-32)"
+# PW lokal in einen Passwortmanager kopieren, NICHT in shell-history oder logs schreiben.
+.venv-uptime-kuma/bin/pip install --quiet bcrypt
+PASSWORD="$PW" .venv-uptime-kuma/bin/python -c "
+import os, sqlite3, bcrypt
+h = bcrypt.hashpw(os.environ['PASSWORD'].encode(), bcrypt.gensalt(rounds=10)).decode()
+con = sqlite3.connect('data/uptime-kuma/kuma.db')
+con.execute('UPDATE user SET password = ? WHERE id = 1', (h,))
+con.commit()"
+docker start filehub-uptime-kuma
+```
+
+Danach `.secrets/uptime-kuma.env` mit dem neuen Passwort aktualisieren und das Setup-Skript erneut starten. Vorher unbedingt ein Backup der DB anlegen, z. B. nach `.secrets/kuma.db.bak.<ts>`.
+
 ## Daten Sichern
 
 Die Uptime-Kuma-Daten liegen unter `data/uptime-kuma`. `scripts/backup.sh` sichert dieses Verzeichnis als Teil von `observability-data.tar.gz`. Damit sind Monitor-Konfigurationen und Heartbeat-Historie im taeglichen Backup enthalten.
