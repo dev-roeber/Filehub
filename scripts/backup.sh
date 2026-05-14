@@ -37,6 +37,12 @@ tar --warning=no-file-changed -czf "$backup_dir/filehub-config.tar.gz" compose*.
 tar --warning=no-file-changed -czf "$backup_dir/paperless-data.tar.gz" data/paperless
 tar --warning=no-file-changed -czf "$backup_dir/convertx-data.tar.gz" data/convertx
 tar --warning=no-file-changed -czf "$backup_dir/observability-data.tar.gz" data/uptime-kuma data/homepage
+if [[ -d data/filebrowser ]]; then
+  tar --warning=no-file-changed -czf "$backup_dir/filebrowser-data.tar.gz" data/filebrowser config/filebrowser
+fi
+if [[ -d data/stirling ]]; then
+  tar --warning=no-file-changed -czf "$backup_dir/stirling-data.tar.gz" data/stirling
+fi
 
 for archive in "$backup_dir"/*.tar.gz; do
   tar -tzf "$archive" >/dev/null
@@ -65,7 +71,11 @@ if [[ -n "${RESTIC_REPOSITORY:-}" && -n "${RESTIC_PASSWORD:-}" ]]; then
     echo "ERROR: Restic-Repository ist nicht initialisiert oder nicht erreichbar. Fuehre restic init bewusst separat aus." >&2
     exit 1
   fi
-  restic backup --tag filehub-full "$backup_dir" data/paperless data/convertx config docs scripts compose.yml compose.paperless.yml compose.convertx.yml compose.observability.yml .env.example README.md
+  restic_paths=("$backup_dir" data/paperless data/convertx config docs scripts compose.yml compose.paperless.yml compose.convertx.yml compose.observability.yml .env.example README.md)
+  [[ -d data/filebrowser ]] && restic_paths+=(data/filebrowser)
+  [[ -d data/stirling ]] && restic_paths+=(data/stirling)
+  [[ -f compose.extensions.yml ]] && restic_paths+=(compose.extensions.yml)
+  restic backup --tag filehub-full "${restic_paths[@]}"
   if [[ "${RESTIC_APPLY_RETENTION:-false}" == "true" ]]; then
     echo "RESTIC_APPLY_RETENTION=true. Wende restic retention mit prune an (nur Tag filehub-full)."
     restic forget \

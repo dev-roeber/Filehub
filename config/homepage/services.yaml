@@ -1,4 +1,4 @@
-- Filehub:
+- Filehub Core:
     - Paperless:
         href: http://127.0.0.1:8000
         description: Dokumentenmanagement und OCR
@@ -11,17 +11,53 @@
         icon: convertx.png
         server: docker
         container: filehub-convertx
-
-- Monitoring:
-    - Dozzle:
-        href: http://127.0.0.1:9999
-        description: Container-Logs
-        icon: dozzle.png
+    - Stirling PDF:
+        href: http://127.0.0.1:3004
+        description: PDF-Werkzeuge (merge, split, OCR)
+        icon: mdi-file-pdf-box
         server: docker
-        container: filehub-dozzle
+        container: filehub-stirling-pdf
+    - Filebrowser:
+        href: http://127.0.0.1:3003
+        description: Lokaler Datei-Manager
+        icon: mdi-folder-multiple
+        server: docker
+        container: filehub-filebrowser
+
+- Operations:
     - Uptime Kuma:
         href: http://127.0.0.1:3002
         description: Lokales Monitoring
         icon: uptime-kuma.png
         server: docker
         container: filehub-uptime-kuma
+    - Dozzle:
+        href: http://127.0.0.1:9999
+        description: Container-Logs
+        icon: dozzle.png
+        server: docker
+        container: filehub-dozzle
+    - GitHub Repo:
+        href: https://github.com/dev-roeber
+        description: Source und Issues
+        icon: mdi-github
+    - Backup Docs:
+        description: docs/backup-schedule.md
+        icon: mdi-book-clock
+    - Restore Docs:
+        description: docs/backup-restore.md
+        icon: mdi-book-refresh
+
+- Storage und Backups:
+    - Restic Backup:
+        description: Lokaler restic-Lauf via systemd-Timer
+        icon: mdi-database-clock
+    - Local Backups:
+        description: backups/ im Repo-Verzeichnis
+        icon: mdi-folder-zip
+    - Google Drive Repository:
+        description: rclone:gdrive:backups/filehub
+        icon: mdi-google-drive
+    - Restore Test Docs:
+        description: docs/restore-test.md
+        icon: mdi-restore

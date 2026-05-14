@@ -2,6 +2,7 @@ set shell := ["bash", "-cu"]
 
 compose_core := "docker compose -f compose.yml -f compose.paperless.yml -f compose.convertx.yml"
 compose_all := "docker compose -f compose.yml -f compose.paperless.yml -f compose.convertx.yml -f compose.observability.yml"
+compose_ext := "docker compose -f compose.yml -f compose.paperless.yml -f compose.convertx.yml -f compose.observability.yml -f compose.extensions.yml"
 compose_proxy := "docker compose -f compose.yml -f compose.paperless.yml -f compose.convertx.yml -f compose.observability.yml -f compose.proxy.yml --profile proxy"
 
 init:
@@ -90,4 +91,29 @@ security-check:
     @echo "Pruefe zusaetzlich: docs/security.md"
 
 tunnel-help:
-    @echo "ssh -L 3000:127.0.0.1:3000 -L 8000:127.0.0.1:8000 -L 9999:127.0.0.1:9999 -L 3001:127.0.0.1:3001 -L 3002:127.0.0.1:3002 sebastian@SERVER_IP"
+    @echo "ssh -L 3000:127.0.0.1:3000 -L 8000:127.0.0.1:8000 -L 9999:127.0.0.1:9999 -L 3001:127.0.0.1:3001 -L 3002:127.0.0.1:3002 -L 3003:127.0.0.1:3003 -L 3004:127.0.0.1:3004 sebastian@SERVER_IP"
+
+secrets-audit:
+    ./scripts/secrets-audit.sh
+
+up-extensions:
+    {{compose_ext}} up -d filebrowser stirling-pdf
+
+down-extensions:
+    {{compose_ext}} stop filebrowser stirling-pdf
+    {{compose_ext}} rm -f filebrowser stirling-pdf
+
+restart-extensions:
+    {{compose_ext}} restart filebrowser stirling-pdf
+
+logs-extensions:
+    {{compose_ext}} logs -f --tail=200 filebrowser stirling-pdf
+
+up-all:
+    {{compose_ext}} up -d
+
+ps-all:
+    {{compose_ext}} ps
+
+health-all:
+    ./scripts/health.sh

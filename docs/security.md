@@ -41,6 +41,25 @@ Konsequenzen:
 - Reverse-Proxy darf keinen direkten Container-Port ueber `0.0.0.0` durchschleifen.
 - Vor jeder Veroeffentlichung pruefen, ob der Socket-Mount fuer den jeweiligen Dienst noch noetig ist.
 
+## Filebrowser
+
+Filebrowser hat Schreib- und Loeschrechte auf den gemounteten Pfaden
+(`data/filebrowser/root`, `data/paperless/consume`, `data/stirling/work`).
+Es ist KEIN Mount auf `.env`, `.secrets/`, das Repo-Root oder Compose-Dateien
+gesetzt. Trotzdem gilt:
+
+- Kein Public Binding ohne zusaetzliche Auth/Reverse Proxy.
+- Wer den UI-Login hat, kann Dateien in Paperless einspielen und Stirling-
+  Arbeitsverzeichnisse manipulieren.
+- Admin-Passwort gehoert in den Passwortmanager.
+
+## Stirling PDF
+
+- Login ist via `SECURITY_ENABLELOGIN=true` aktiv. Kein anonymer Zugriff.
+- Kein Public Binding.
+- PDFs koennen bei OCR/Konvertierung Ressourcen verbrauchen; bei
+  oeffentlicher Exposition zwingend Auth + Rate-Limit vorlagern.
+
 ## Backups
 
 Restic-Backups sind verschlüsselt, aber nur belastbar, wenn Restore regelmäßig getestet wird. Das restic-Passwort und die rclone-Konfiguration sind kritisch und dürfen nicht im Git landen.

@@ -24,6 +24,8 @@ HTTP_MONITORS = [
     ("Filehub Uptime Kuma",   "http://uptime-kuma:3001"),
     ("Filehub Gotenberg",     "http://paperless-gotenberg:3000/health"),
     ("Filehub Tika",          "http://paperless-tika:9998/"),
+    ("Filehub Filebrowser",   "http://filebrowser:80/"),
+    ("Filehub Stirling PDF",  "http://stirling-pdf:8080/"),
 ]
 
 TCP_MONITORS = [
@@ -74,14 +76,14 @@ def main() -> int:
             if name in existing:
                 mid = existing[name]["id"]
                 api.edit_monitor(id_=mid, name=name, type=mtype,
-                                 accepted_statuscodes=["200-299"],
+                                 accepted_statuscodes=fields.pop("accepted_statuscodes", ["200-299"]),
                                  **DEFAULTS, **fields)
                 print(f"  update  {name}  (id={mid})")
                 updated += 1
                 return mid
             result = api.add_monitor(
                 type=mtype, name=name,
-                accepted_statuscodes=["200-299"],
+                accepted_statuscodes=fields.pop("accepted_statuscodes", ["200-299"]),
                 **DEFAULTS, **fields,
             )
             mid = result["monitorID"]
@@ -90,8 +92,12 @@ def main() -> int:
             return mid
 
         all_ids = []
+        # Stirling und Filebrowser geben 200-499 (Login-Redirect/401/404 sind UP).
+        broad_codes = ["200-299", "300-399", "401", "403", "404"]
         for name, url_ in HTTP_MONITORS:
-            mid = ensure(name, MonitorType.HTTP, url=url_, method="GET")
+            codes = broad_codes if name in ("Filehub Stirling PDF", "Filehub Filebrowser") else ["200-299"]
+            mid = ensure(name, MonitorType.HTTP, url=url_, method="GET",
+                         accepted_statuscodes=codes)
             all_ids.append(mid)
 
         for name, host, port in TCP_MONITORS:
