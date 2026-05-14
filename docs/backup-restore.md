@@ -23,6 +23,61 @@ Wenn `RESTIC_REPOSITORY` und `RESTIC_PASSWORD` gesetzt sind, startet das Backup-
 
 Google Drive kann über rclone als restic-Backend genutzt werden, z. B. nach vorheriger rclone-Konfiguration. Zugangsdaten bleiben außerhalb des Repositories.
 
+Aktuelles Ziel fuer Google Drive:
+
+```env
+RESTIC_REPOSITORY=rclone:gdrive:backups/filehub
+RCLONE_CONFIG_PATH=/home/sebastian/.config/rclone/rclone.conf
+```
+
+`RESTIC_PASSWORD` liegt nur in `.env` und muss zusaetzlich extern in einem Passwortmanager gesichert werden. Ohne diese Passphrase ist ein Restore aus dem restic-Repository nicht moeglich.
+
+Das restic-Repository muss bewusst initialisiert werden:
+
+```bash
+set -a
+source .env
+set +a
+export RESTIC_REPOSITORY RESTIC_PASSWORD
+export RCLONE_CONFIG="$RCLONE_CONFIG_PATH"
+restic cat config || restic init
+restic snapshots
+```
+
+## Cloud-Smoke-Test
+
+Vor einem grossen Cloud-Backup wurde ein kleiner Smoke-Test empfohlen:
+
+1. kleine Testdatei unter `backups/restic-smoke-test/` erzeugen
+2. nur diese Datei mit `restic backup --tag filehub-smoke-test` sichern
+3. `restic snapshots --tag filehub-smoke-test` pruefen
+4. Snapshot lokal in ein temporaeres Verzeichnis restoren
+5. Dateiinhalt oder Checksumme vergleichen
+
+Der Smoke-Test hinterlaesst absichtlich einen kleinen Snapshot. Snapshots werden nicht automatisch geloescht.
+
+## Retention
+
+Retention und `prune` werden nicht automatisch bei jedem Backup ausgefuehrt. Das normale Backup-Script fuehrt `restic forget --prune` nur aus, wenn diese Variable bewusst gesetzt ist:
+
+```env
+RESTIC_APPLY_RETENTION=true
+```
+
+Vor jeder produktiven Retention sollte zuerst ein Dry-Run erfolgen:
+
+```bash
+restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --dry-run
+```
+
+## Kosten und Risiken
+
+- Google-Drive-Speicherverbrauch steigt mit Snapshots und geaenderten Daten.
+- Der erste vollstaendige Upload kann je nach Datenmenge lange dauern.
+- Upload-Traffic und Google-API-Limits koennen Backups verzoegern.
+- Restic-Snapshots sind verschluesselt; verlorene Passphrase bedeutet verlorenen Zugriff.
+- Ein erfolgreiches Backup ersetzt keinen regelmaessigen Restore-Test.
+
 ## Lokales Backup
 
 ```bash

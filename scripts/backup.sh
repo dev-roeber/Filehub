@@ -45,12 +45,25 @@ fi
 if [[ -n "${RESTIC_REPOSITORY:-}" && -n "${RESTIC_PASSWORD:-}" ]]; then
   echo "RESTIC_REPOSITORY und RESTIC_PASSWORD sind gesetzt. Starte restic backup."
   export RESTIC_REPOSITORY RESTIC_PASSWORD
-  if [[ -n "${RCLONE_CONFIG_PATH:-}" && -f "$RCLONE_CONFIG_PATH" ]]; then
+  if [[ "$RESTIC_REPOSITORY" == rclone:* ]]; then
+    RCLONE_CONFIG_PATH="${RCLONE_CONFIG_PATH:-/home/sebastian/.config/rclone/rclone.conf}"
+    if [[ ! -r "$RCLONE_CONFIG_PATH" ]]; then
+      echo "ERROR: RCLONE_CONFIG_PATH ist fuer rclone-Restic-Repositories nicht lesbar." >&2
+      exit 1
+    fi
     export RCLONE_CONFIG="$RCLONE_CONFIG_PATH"
   fi
-  restic snapshots >/dev/null 2>&1 || restic init
+  if ! restic cat config >/dev/null 2>&1; then
+    echo "ERROR: Restic-Repository ist nicht initialisiert oder nicht erreichbar. Fuehre restic init bewusst separat aus." >&2
+    exit 1
+  fi
   restic backup "$backup_dir" data/paperless data/convertx config docs scripts compose.yml compose.paperless.yml compose.convertx.yml compose.observability.yml .env.example README.md
-  restic forget --keep-daily "${BACKUP_RETENTION_DAILY:-7}" --keep-weekly "${BACKUP_RETENTION_WEEKLY:-4}" --keep-monthly "${BACKUP_RETENTION_MONTHLY:-6}" --prune
+  if [[ "${RESTIC_APPLY_RETENTION:-false}" == "true" ]]; then
+    echo "RESTIC_APPLY_RETENTION=true. Wende restic retention mit prune an."
+    restic forget --keep-daily "${BACKUP_RETENTION_DAILY:-7}" --keep-weekly "${BACKUP_RETENTION_WEEKLY:-4}" --keep-monthly "${BACKUP_RETENTION_MONTHLY:-6}" --prune
+  else
+    echo "Restic retention/prune wird nicht automatisch angewendet. Setze RESTIC_APPLY_RETENTION=true nur bewusst."
+  fi
 else
   echo "Restic ist nicht konfiguriert. Lokales Backup-Paket wurde vorbereitet."
 fi
