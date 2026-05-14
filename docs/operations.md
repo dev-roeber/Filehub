@@ -38,13 +38,19 @@ just health
 
 ## Monitoring
 
-Uptime Kuma sollte lokale Checks für diese URLs bekommen:
+Uptime Kuma laeuft mit 11 Monitoren fuer:
 
-- `http://127.0.0.1:8000`
-- `http://127.0.0.1:3000`
-- `http://127.0.0.1:3001`
-- `http://127.0.0.1:9999`
-- `http://127.0.0.1:3002`
+- Paperless (`8000`)
+- ConvertX (`3000`)
+- Homepage (`3001`)
+- Uptime Kuma selbst (`3002`)
+- Filebrowser (`3003`)
+- Stirling PDF (`3004`)
+- Dozzle (`9999`)
+- Gotenberg, Tika (intern via Docker-Netz)
+- PostgreSQL und Redis (TCP-Probes)
+
+Setup-Skript: `scripts/setup-uptime-kuma-monitors.sh`. Idempotent.
 
 Dozzle bleibt nur lokal erreichbar, weil Logs sensible Inhalte enthalten können.
 

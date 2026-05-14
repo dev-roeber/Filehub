@@ -60,6 +60,18 @@ gesetzt. Trotzdem gilt:
 - PDFs koennen bei OCR/Konvertierung Ressourcen verbrauchen; bei
   oeffentlicher Exposition zwingend Auth + Rate-Limit vorlagern.
 
+## ConvertX
+
+- Login aktiv, `ACCOUNT_REGISTRATION=false` nach Initial-Setup.
+- `ALLOW_UNAUTHENTICATED=false`, `HTTP_ALLOWED=true` (nur fuer localhost).
+- `cpus: 2.0`, `mem_limit: 4g`, `MAX_CONVERT_PROCESS=2`.
+- Video-Konvertierung ist CPU-/RAM-lastig; keine grossen Stresstests.
+- `AUTO_DELETE_EVERY_N_HOURS=24` raeumt UI-Verlauf auf, ist aber kein
+  Ersatz fuer datenschutzgerechte Archivierung — sensible Dokumente
+  gehoeren in Paperless, nicht in den ConvertX-Verlauf.
+- Vor Public-Exposition: Auth-Schicht (Caddy/OAuth) und Rate-Limit
+  zwingend vorlagern.
+
 ## Backups
 
 Restic-Backups sind verschlüsselt, aber nur belastbar, wenn Restore regelmäßig getestet wird. Das restic-Passwort und die rclone-Konfiguration sind kritisch und dürfen nicht im Git landen.

@@ -4,6 +4,9 @@
 .venv-*/
 data/*
 !data/.gitkeep
+data/convertx-test/output/*
+data/convertx-test/input/*
+!data/convertx-test/.gitkeep
 backups/**
 !backups/.gitkeep
 config/homepage/logs/

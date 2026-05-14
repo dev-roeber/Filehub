@@ -13,13 +13,22 @@ Kernkomponenten:
 | Service | Zweck | Lokale URL |
 |---|---|---|
 | Paperless-ngx | Dokumentenmanagement, OCR, Office/E-Mail via Tika/Gotenberg | `http://127.0.0.1:8000` |
-| ConvertX | Dateikonvertierung | `http://127.0.0.1:3000` |
+| ConvertX | Dateikonvertierung (Bild, Doc, Audio, Video) | `http://127.0.0.1:3000` |
 | Homepage | Dashboard | `http://127.0.0.1:3001` |
+| Uptime Kuma | Monitoring (11 Monitore) | `http://127.0.0.1:3002` |
+| Filebrowser | Lokaler Datei-Manager | `http://127.0.0.1:3003` |
+| Stirling PDF | PDF-Werkzeuge (merge, split, rotate, compress) | `http://127.0.0.1:3004` |
 | Dozzle | Docker-Logs | `http://127.0.0.1:9999` |
-| Uptime Kuma | Monitoring | `http://127.0.0.1:3002` |
 | PostgreSQL | Paperless-Datenbank | intern |
 | Redis | Paperless-Queue/Cache | intern |
 | Tika/Gotenberg | Dokumentenextraktion und Office-Konvertierung | intern |
+
+Backup/Betrieb:
+
+- `restic` + `rclone` (Google Drive) fuer verschluesselte Offsite-Backups
+- systemd User-Timer `filehub-backup.timer` (taeglich 03:45)
+- `just`-Rezepte fuer Start/Stop/Health/Backup/Security/Secrets-Audit
+- Scripts unter `scripts/` fuer Init, Doctor, Backup, Restore, Setup-Helfer
 
 ## Initialer Start
 
@@ -46,7 +55,14 @@ just health
 ## SSH-Tunnel
 
 ```bash
-ssh -L 3000:127.0.0.1:3000 -L 8000:127.0.0.1:8000 -L 9999:127.0.0.1:9999 -L 3001:127.0.0.1:3001 -L 3002:127.0.0.1:3002 sebastian@SERVER_IP
+ssh -L 8000:127.0.0.1:8000 \
+    -L 3000:127.0.0.1:3000 \
+    -L 3001:127.0.0.1:3001 \
+    -L 3002:127.0.0.1:3002 \
+    -L 3003:127.0.0.1:3003 \
+    -L 3004:127.0.0.1:3004 \
+    -L 9999:127.0.0.1:9999 \
+    sebastian@SERVER_IP
 ```
 
 Keine echte Server-IP ist im Repository hinterlegt.
