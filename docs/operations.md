@@ -86,3 +86,18 @@ just security-check             # doctor + Verweis auf docs/security.md
 ```
 
 Diese Befehle geben keine Secrets aus.
+
+## Taeglicher Blick ins Monitoring
+
+1. Uptime Kuma im Browser oeffnen: `http://127.0.0.1:3002` (ggf. via SSH-Tunnel `ssh -L 3002:127.0.0.1:3002 sebastian@SERVER_IP`).
+2. Im Dashboard nach roten Monitoren oder gelben Heartbeats suchen.
+3. Wenn ein Monitor rot ist:
+   - In Dozzle (`http://127.0.0.1:9999`) die Logs des betroffenen Containers pruefen.
+   - `just ps` und `just health` fuer den schnellen Stack-Ueberblick.
+   - Wenn ein Restart noetig scheint, gezielt `docker compose restart <service>` statt globalem `just restart`.
+4. Mindestens woechentlich:
+   - `just snapshots`
+   - `just backup-dry-run-retention`
+   - `just ports`
+
+Notifications in Uptime Kuma erst aktivieren, wenn alle Monitore stabil gruen sind.

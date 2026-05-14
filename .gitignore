@@ -1,5 +1,7 @@
 .env
 *.env
+.secrets/
+.venv-*/
 data/*
 !data/.gitkeep
 backups/**

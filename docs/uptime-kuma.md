@@ -28,7 +28,58 @@ Der Container ist im Docker-Netzwerk `filehub_net` und kann die anderen Filehub-
 6. Nach Login: Settings -> General -> Timezone auf `Europe/Berlin`, Theme nach Wunsch.
 7. Settings -> Security -> Disable Auth bleibt `off`.
 
-## Monitor Anlegen: Klick-Anleitung
+## Automatische Monitor-Anlage (empfohlen)
+
+Nach dem initialen Admin-Konto koennen die Filehub-Monitore automatisch angelegt werden.
+
+Voraussetzung: `.secrets/uptime-kuma.env` (git-ignored) mit:
+
+```env
+UPTIME_KUMA_URL=http://127.0.0.1:3002
+UPTIME_KUMA_USER=<dein Admin-Username>
+UPTIME_KUMA_PASSWORD=<dein Admin-Passwort>
+```
+
+Datei-Modus `600`, Verzeichnis `700`. Die Datei wird durch `.gitignore` ausgeschlossen und darf niemals committed werden.
+
+Start:
+
+```bash
+./scripts/setup-uptime-kuma-monitors.sh
+```
+
+Eigenschaften:
+
+- Idempotent: bestehende Monitore werden anhand des Namens gefunden und aktualisiert, nicht dupliziert.
+- Setzt fuer jeden Monitor: `interval=60`, `maxretries=2`, `retryInterval=60`, `timeout=20`, HTTP-Methode `GET`, akzeptierte Statuscodes `200-299`, Tag `filehub`.
+- Legt einen Tag `filehub` an, falls noch nicht vorhanden.
+- Loggt keine Passwoerter.
+
+Wenn `.secrets/uptime-kuma.env` fehlt, fragt das Skript Username und Passwort interaktiv ab (`read -s` fuer das Passwort).
+
+Eingesetzt werden:
+
+| Name | Typ | Ziel |
+|---|---|---|
+| Filehub Paperless | HTTP | `http://paperless-webserver:8000` |
+| Filehub ConvertX | HTTP | `http://convertx:3000` |
+| Filehub Homepage | HTTP | `http://homepage:3000` |
+| Filehub Dozzle | HTTP | `http://dozzle:8080` |
+| Filehub Uptime Kuma | HTTP | `http://uptime-kuma:3001` |
+| Filehub Gotenberg | HTTP | `http://paperless-gotenberg:3000/health` |
+| Filehub Tika | HTTP | `http://paperless-tika:9998/` |
+| Filehub PostgreSQL | Port | `paperless-db:5432` |
+| Filehub Redis | Port | `paperless-redis:6379` |
+
+Status nach Lauf in der Uptime-Kuma-UI pruefen. Erster Heartbeat sollte innerhalb 1-2 Minuten gruen werden.
+
+Wenn das Script mit `Incorrect username or password.` abbricht, ist meist der Username nicht `admin`, sondern der waehrend des initialen Setups gewaehlte Name. Korrektur in `.secrets/uptime-kuma.env`, dann erneut starten.
+
+## Daten Sichern
+
+Die Uptime-Kuma-Daten liegen unter `data/uptime-kuma`. `scripts/backup.sh` sichert dieses Verzeichnis als Teil von `observability-data.tar.gz`. Damit sind Monitor-Konfigurationen und Heartbeat-Historie im taeglichen Backup enthalten.
+
+## Manueller Fallback: Klick-Anleitung
 
 Fuer jeden Monitor in der Tabelle weiter unten:
 
