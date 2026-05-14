@@ -1,0 +1,6 @@
+name: filehub
+
+networks:
+  filehub_net:
+    name: filehub_net
+    driver: bridge

@@ -1,0 +1,29 @@
+services:
+  convertx:
+    image: ghcr.io/c4illin/convertx:latest
+    container_name: filehub-convertx
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CONVERTX_PORT:-3000}:3000"
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      JWT_SECRET: ${CONVERTX_JWT_SECRET}
+      ACCOUNT_REGISTRATION: ${ACCOUNT_REGISTRATION:-false}
+      MAX_CONVERT_PROCESS: "2"
+    volumes:
+      - ./data/convertx:/app/data
+    networks:
+      - filehub_net
+    cpus: "2.0"
+    mem_limit: 4g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

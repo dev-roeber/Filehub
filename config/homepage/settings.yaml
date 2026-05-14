@@ -1,0 +1,11 @@
+title: Filehub
+theme: dark
+color: slate
+language: de
+layout:
+  Filehub:
+    style: row
+    columns: 4
+  Monitoring:
+    style: row
+    columns: 2

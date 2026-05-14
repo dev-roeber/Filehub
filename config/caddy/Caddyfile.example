@@ -1,0 +1,19 @@
+# EXAMPLE ONLY.
+# Filehub starts without this proxy. Do not expose this publicly until domains,
+# HTTPS, authentication and firewall rules have been reviewed.
+
+paperless.example.com {
+    reverse_proxy paperless-webserver:8000
+}
+
+convert.example.com {
+    reverse_proxy convertx:3000
+}
+
+status.example.com {
+    reverse_proxy uptime-kuma:3001
+}
+
+home.example.com {
+    reverse_proxy homepage:3000
+}

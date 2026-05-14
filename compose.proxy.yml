@@ -1,0 +1,21 @@
+services:
+  caddy:
+    image: caddy:2.8
+    container_name: filehub-caddy
+    restart: unless-stopped
+    profiles:
+      - proxy
+    ports:
+      - "${CADDY_HTTP_BIND:-127.0.0.1}:${CADDY_HTTP_PORT:-8081}:80"
+      - "${CADDY_HTTPS_BIND:-127.0.0.1}:${CADDY_HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./config/caddy/Caddyfile.example:/etc/caddy/Caddyfile:ro
+      - ./data/caddy/data:/data
+      - ./data/caddy/config:/config
+    networks:
+      - filehub_net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

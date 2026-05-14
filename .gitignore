@@ -1,0 +1,11 @@
+.env
+*.env
+data/*
+!data/.gitkeep
+backups/**
+!backups/.gitkeep
+config/homepage/logs/
+config/homepage/kubernetes.yaml
+*.log
+*.tmp
+.DS_Store

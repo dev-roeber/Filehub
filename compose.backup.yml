@@ -1,0 +1,21 @@
+services:
+  backup:
+    image: restic/restic:latest
+    container_name: filehub-backup
+    profiles:
+      - backup
+    restart: "no"
+    environment:
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD}
+      RCLONE_CONFIG: /config/rclone/rclone.conf
+      BACKUP_RETENTION_DAILY: ${BACKUP_RETENTION_DAILY:-7}
+      BACKUP_RETENTION_WEEKLY: ${BACKUP_RETENTION_WEEKLY:-4}
+      BACKUP_RETENTION_MONTHLY: ${BACKUP_RETENTION_MONTHLY:-6}
+    volumes:
+      - ./:/filehub:ro
+      - ./backups:/local-backups
+      - ${RCLONE_CONFIG_PATH:-/home/sebastian/.config/rclone/rclone.conf}:/config/rclone/rclone.conf:ro
+    networks:
+      - filehub_net
+    entrypoint: ["restic"]

@@ -1,0 +1,27 @@
+- Filehub:
+    - Paperless:
+        href: http://127.0.0.1:8000
+        description: Dokumentenmanagement und OCR
+        icon: paperless-ngx.png
+        server: docker
+        container: filehub-paperless-webserver
+    - ConvertX:
+        href: http://127.0.0.1:3000
+        description: Dateikonvertierung
+        icon: convertx.png
+        server: docker
+        container: filehub-convertx
+
+- Monitoring:
+    - Dozzle:
+        href: http://127.0.0.1:9999
+        description: Container-Logs
+        icon: dozzle.png
+        server: docker
+        container: filehub-dozzle
+    - Uptime Kuma:
+        href: http://127.0.0.1:3002
+        description: Lokales Monitoring
+        icon: uptime-kuma.png
+        server: docker
+        container: filehub-uptime-kuma

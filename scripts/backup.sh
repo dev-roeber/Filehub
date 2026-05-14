@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if [[ ! -f .env ]]; then
+  echo "ERROR: .env fehlt." >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1091
+set -a; source .env; set +a
+
+timestamp="$(date +%Y%m%d-%H%M%S)"
+backup_dir="backups/${timestamp}"
+mkdir -p "$backup_dir"
+chmod 700 "$backup_dir"
+
+echo "Erstelle lokales Backup unter $backup_dir"
+
+if docker inspect filehub-paperless-db >/dev/null 2>&1; then
+  echo "Erzeuge Postgres-Dump."
+  docker exec filehub-paperless-db pg_dump -U "$PAPERLESS_DBUSER" "$PAPERLESS_DBNAME" > "$backup_dir/paperless-postgres.sql"
+else
+  echo "WARN: DB-Container nicht gefunden. Postgres-Dump wird übersprungen."
+fi
+
+tar --warning=no-file-changed -czf "$backup_dir/filehub-config.tar.gz" compose*.yml justfile config docs scripts .env.example README.md
+tar --warning=no-file-changed -czf "$backup_dir/paperless-data.tar.gz" data/paperless
+tar --warning=no-file-changed -czf "$backup_dir/convertx-data.tar.gz" data/convertx
+tar --warning=no-file-changed -czf "$backup_dir/observability-data.tar.gz" data/uptime-kuma data/homepage
+
+for archive in "$backup_dir"/*.tar.gz; do
+  tar -tzf "$archive" >/dev/null
+done
+
+if [[ "${INCLUDE_ENV_IN_BACKUP:-false}" == "true" ]]; then
+  echo "WARN: INCLUDE_ENV_IN_BACKUP=true. .env wird sensibel gesichert."
+  cp .env "$backup_dir/env.SENSITIVE"
+  chmod 600 "$backup_dir/env.SENSITIVE"
+else
+  echo ".env wurde nicht gesichert. Setze INCLUDE_ENV_IN_BACKUP=true nur bewusst."
+fi
+
+if [[ -n "${RESTIC_REPOSITORY:-}" && -n "${RESTIC_PASSWORD:-}" ]]; then
+  echo "RESTIC_REPOSITORY und RESTIC_PASSWORD sind gesetzt. Starte restic backup."
+  export RESTIC_REPOSITORY RESTIC_PASSWORD
+  if [[ -n "${RCLONE_CONFIG_PATH:-}" && -f "$RCLONE_CONFIG_PATH" ]]; then
+    export RCLONE_CONFIG="$RCLONE_CONFIG_PATH"
+  fi
+  restic snapshots >/dev/null 2>&1 || restic init
+  restic backup "$backup_dir" data/paperless data/convertx config docs scripts compose.yml compose.paperless.yml compose.convertx.yml compose.observability.yml .env.example README.md
+  restic forget --keep-daily "${BACKUP_RETENTION_DAILY:-7}" --keep-weekly "${BACKUP_RETENTION_WEEKLY:-4}" --keep-monthly "${BACKUP_RETENTION_MONTHLY:-6}" --prune
+else
+  echo "Restic ist nicht konfiguriert. Lokales Backup-Paket wurde vorbereitet."
+fi
+
+echo "Backup abgeschlossen: $backup_dir"
