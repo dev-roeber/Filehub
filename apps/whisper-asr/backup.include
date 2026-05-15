@@ -1,0 +1,3 @@
+data/whisper-asr/work
+apps/whisper-asr/compose.yml
+apps/whisper-asr/.env.example

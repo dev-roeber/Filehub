@@ -1,0 +1,46 @@
+# Whisper-ASR - eigenstaendige Compose-Definition (Speech-to-Text Webservice).
+# Aufruf:  docker compose --env-file ../../.env -f compose.yml up -d
+#
+# TODO: Image-Tag-Strategie etablieren, Tag-Pin ueberpruefen vor Production-Use.
+# CPU-Variante (kein -gpu Suffix). Standardbetrieb auf CPU ausreichend fuer
+# kleine/mittlere Modelle (tiny/base/small).
+#
+# GPU-Variante (-gpu-Tag) + 'deploy.resources.reservations.devices' nur bei
+# expliziter Aktivierung. CPU ist Standard, ausreichend fuer kleine/mittlere Modelle.
+
+name: filehub
+
+networks:
+  filehub_net:
+    name: filehub_net
+    external: true
+
+services:
+  whisper-asr:
+    image: onerahmet/openai-whisper-asr-webservice:v1.7.0
+    container_name: filehub-whisper-asr
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WHISPER_ASR_PORT:-9001}:9000"
+    environment:
+      ASR_MODEL: ${WHISPER_ASR_MODEL:-base}
+      ASR_ENGINE: ${WHISPER_ASR_ENGINE:-openai_whisper}
+      TZ: ${TZ:-Europe/Berlin}
+    volumes:
+      # Modellcache (persistent, damit Modelle nicht bei jedem Restart geladen werden).
+      - ../../data/whisper-asr/cache:/root/.cache
+      # Arbeitsdaten (optionaler Bind-Mount fuer Input/Output-Dateien).
+      - ../../data/whisper-asr/work:/data
+    networks:
+      - filehub_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/docs >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
