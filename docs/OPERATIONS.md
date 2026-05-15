@@ -170,7 +170,8 @@ just migrate-execute-stirling-pdf         # Phase C-1, erledigt
 just migrate-execute-paperless-careful    # Phase C-2, erledigt (Multi-Container)
 just migrate-execute-convertx             # Phase D, erledigt
 just migrate-execute-uptime-kuma          # Phase E, erledigt (120s Healthcheck-Default)
-# dozzle folgt zuletzt (Phase F). authentik separate Sonderphase.
+just migrate-execute-dozzle              # Phase F, erledigt
+# Alle 7 Apps migriert. authentik separate Sonderphase.
 ```
 
 Die Reihenfolge (homepage -> filebrowser -> stirling-pdf -> paperless ->

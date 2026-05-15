@@ -48,7 +48,7 @@ ob alle Vorgaenger `source=app` haben.
 | C-2 | paperless | erledigt (2026-05-15, Multi-Container-Cutover) |
 | D | convertx | erledigt (2026-05-15) |
 | E | uptime-kuma | erledigt (2026-05-15, 120s/5s Healthcheck-Default) |
-| F | dozzle | vorbereitet, Dry-Run gruen, naechster Live-Cutover |
+| F | dozzle | erledigt (2026-05-15, ~35s Healthcheck) |
 | -- | authentik | separate Sonderphase, blockiert in migrate-app.sh |
 
 ### Warum diese Reihenfolge

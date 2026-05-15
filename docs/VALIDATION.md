@@ -352,6 +352,29 @@ Validierung nach Cutover:
 
 Stand: 6 Apps migriert (source=app), nur dozzle source=root. Authentik separate Sonderphase.
 
+### Live-Cutover dozzle (2026-05-15)
+
+Ausgefuehrt: `just migrate-execute-dozzle`, exit 0, **kein Rollback** noetig.
+
+Eckdaten:
+- Reihenfolge-Pruefung: 6 Vorgaenger source=app OK.
+- Preflight 10/10 OK.
+- Backup: `backups/20260515-134505/dozzle-app.tar.gz`.
+- Stop+rm `filehub-dozzle` aus `compose.observability.yml`.
+- Healthcheck-Loop: bestanden bei Versuch 7 (~35s, Dozzle braucht Indexierung).
+- Post-Audit: 0 FAIL.
+
+Validierung nach Cutover:
+| Check | Ergebnis |
+|---|---|
+| `just app-health dozzle` | state=healthy, http=200 |
+| HTTP-Probe 127.0.0.1:9999/ | 200 |
+| `just migration-status` (dozzle) | source=app, healthy |
+| `just runtime-audit` | 0 FAIL |
+| `just backup-age dozzle` | OK 0h 0min |
+
+**Stand: alle 7 Apps source=app, healthy. Modulare Runtime-Migration der App-Schicht abgeschlossen.** Nur Authentik bleibt in separater Sonderphase aus Root-Compose.
+
 ### Phase C abgeschlossen
 
 | App | Status | Healthcheck-Loop |
