@@ -204,3 +204,72 @@ gateway-status:
 # und POST-BOOTSTRAP (302 mit Login-Redirect auf Authentik). Aendert nichts.
 gateway-bootstrap-check:
     ./scripts/gateway-bootstrap-check.sh
+
+# --- Modulare App-Kommandos (apps/<id>/) ---
+
+app-list:
+    @./scripts/app.sh list
+
+app-up app:
+    ./scripts/app.sh up {{app}}
+
+app-down app:
+    ./scripts/app.sh down {{app}}
+
+app-restart app:
+    ./scripts/app.sh restart {{app}}
+
+app-logs app:
+    ./scripts/app.sh logs {{app}}
+
+app-status app:
+    ./scripts/app.sh status {{app}}
+
+app-pull app:
+    ./scripts/app.sh pull {{app}}
+
+app-update app:
+    ./scripts/app.sh update {{app}}
+
+app-health app:
+    ./scripts/app.sh health {{app}}
+
+apps-status:
+    @./scripts/app.sh apps-status
+
+infra-status:
+    @./scripts/app.sh infra-status
+
+# --- Authentik (optional, default deaktiviert) ---
+# auth-up startet Authentik nur, wenn AUTHENTIK_ENABLED=true gesetzt ist;
+# andernfalls erfolgt eine Warnung und kein Container-Start.
+
+auth-up:
+    @set -a && . ./.env && set +a && \
+      if [ "${AUTHENTIK_ENABLED:-false}" = "true" ]; then \
+        docker compose --env-file .env -f infra/authentik/compose.yml up -d; \
+      else \
+        echo "AUTHENTIK_ENABLED!=true - keine Aktion. Siehe docs/AUTHENTIK_OPTIONAL.md."; \
+        exit 1; \
+      fi
+
+auth-down:
+    docker compose --env-file .env -f infra/authentik/compose.yml stop
+    docker compose --env-file .env -f infra/authentik/compose.yml rm -f
+
+# --- Gateway (Caddy) ---
+
+gateway-up:
+    docker compose --env-file .env -f compose.auth.yml up -d filehub-gateway
+
+gateway-down:
+    docker compose --env-file .env -f compose.auth.yml stop filehub-gateway
+    docker compose --env-file .env -f compose.auth.yml rm -f filehub-gateway
+
+# --- Modulares Backup ---
+
+backup-app app:
+    ./scripts/app.sh backup-app {{app}}
+
+backup-all:
+    ./scripts/app.sh backup-all
