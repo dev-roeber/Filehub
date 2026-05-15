@@ -1,0 +1,40 @@
+# Grafana - eigenstaendige Compose-Definition.
+# Aufruf:  docker compose --env-file ../../.env -f compose.yml up -d
+
+name: filehub
+
+networks:
+  filehub_net:
+    name: filehub_net
+    external: true
+
+services:
+  grafana:
+    # TODO: Image-Tag spaeter pinnen / via GRAFANA_IMAGE aus .env steuern.
+    image: grafana/grafana:11.4.0
+    container_name: filehub-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3005}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${FILEHUB_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${FILEHUB_ADMIN_PASSWORD:-changeme}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      TZ: ${TZ:-Europe/Berlin}
+    volumes:
+      - ../../data/grafana:/var/lib/grafana
+      - ../../config/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - filehub_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- -T 5 http://localhost:3000/api/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,9 @@
+# Caddy reverse_proxy snippet fuer Grafana (DEAKTIVIERT).
+# Aktivierung: Datei zu .caddy umbenennen UND im Gateway-Caddyfile via
+# `import apps/grafana/caddy` einbinden (oder Inhalt per handle einbetten).
+# Standardmaessig wird dieses Snippet NICHT geladen.
+
+handle /grafana/* {
+	uri strip_prefix /grafana
+	reverse_proxy filehub-grafana:3000
+}
