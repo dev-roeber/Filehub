@@ -375,6 +375,39 @@ Validierung nach Cutover:
 
 **Stand: alle 7 Apps source=app, healthy. Modulare Runtime-Migration der App-Schicht abgeschlossen.** Nur Authentik bleibt in separater Sonderphase aus Root-Compose.
 
+### Gateway-Modularisierung vorbereitet (2026-05-15)
+
+`infra/gateway/compose.yml` ist angelegt, aber **noch nicht aktiv**.
+filehub-gateway laeuft weiterhin aus `compose.auth.yml`.
+
+Compose-Parity-Check (alle OK):
+| Datei | docker compose config -q |
+|---|---|
+| `infra/gateway/compose.yml` | OK |
+| `infra/authentik/compose.yml` | OK |
+| `compose.auth.yml` | OK |
+
+Status-Tools:
+| Tool | Ergebnis |
+|---|---|
+| `just gateway-migration-status` | RUN=yes, HEALTH=healthy, SOURCE=root, SAFE=yes |
+| `just gateway-status` | health=200, root=302 |
+| `just gateway-bootstrap-check` | STATE=POST-BOOTSTRAP |
+| `just runtime-audit` | 25 OK, 12 INFO (inkl. gateway=root), 1 WARN (Authentik), 0 FAIL |
+| `just registry-audit` | 103 OK, 0 WARN, 0 FAIL |
+| `just secrets-audit` | alle Pruefungen bestanden |
+
+**Geloeste Diskrepanzen** (gegenueber dem Authentik-Runbook):
+1. Gateway-Service fehlt im Infra-Modul -> `infra/gateway/compose.yml` angelegt.
+2. `filehub_net` external -> im Gateway-Infra-Modul explizit als `external: true`.
+3. `caddy-gateway`-Volumes -> als Bind-Mounts mit `../../data/...`-Praefix.
+4. `FILEHUB_GATEWAY_PORT`-Default -> in `infra/gateway/.env.example` dokumentiert.
+
+**Verbleibende Diskrepanzen** (dokumentiert, nicht gefixt):
+5. Bind-Mount-Diff-Check noch nicht automatisiert.
+6. Image-Tag `caddy:2.8-alpine` weiterhin hardcoded.
+7. `name: filehub`-Direktive unterschiedlich (faktisch konsistent).
+
 ### Phase C abgeschlossen
 
 | App | Status | Healthcheck-Loop |

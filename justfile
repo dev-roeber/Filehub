@@ -157,6 +157,12 @@ migration-status:
 gateway-migration-status:
     ./scripts/gateway-migration-status.sh
 
+gateway-migration-status-quiet:
+    ./scripts/gateway-migration-status.sh --quiet
+
+gateway-migration-status-json:
+    ./scripts/gateway-migration-status.sh --json
+
 migrate-dry-run app:
     ./scripts/migrate-app.sh {{app}} --dry-run
 
