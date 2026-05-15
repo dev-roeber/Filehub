@@ -375,6 +375,44 @@ Validierung nach Cutover:
 
 **Stand: alle 7 Apps source=app, healthy. Modulare Runtime-Migration der App-Schicht abgeschlossen.** Nur Authentik bleibt in separater Sonderphase aus Root-Compose.
 
+### Neue Apps: grafana + whisper-asr (2026-05-15)
+
+Zwei neue App-Module installiert und registriert. Beide live healthy,
+keine bestehende App veraendert.
+
+| App | Port | default_enabled | Image | Healthcheck |
+|---|---|---|---|---|
+| grafana | 3005 | true | grafana/grafana:11.4.0 | /api/health -> 200 |
+| whisper-asr | 9001 | false (opt-in) | onerahmet/openai-whisper-asr-webservice:v1.7.0 (CPU) | /docs -> 200 |
+
+Grafana-Spezifikum: `user: ${PUID:-1000}:${PGID:-1000}` im compose.yml,
+weil Grafana-Default-UID 472 nicht ins Host-owned `data/grafana`
+schreiben kann. Erst-Init lief mit FILEHUB_ADMIN_USER/PASSWORD aus
+.env; spaetere Passwortaenderung via Grafana-UI.
+
+Whisper-ASR-Spezifikum: CPU-Variante (kein -gpu), `start_period 120s`
+fuer Modelldownload, `data/whisper-asr/cache` bewusst NICHT im
+backup.include (gross + reproduzierbar).
+
+Validierung:
+| Check | Ergebnis |
+|---|---|
+| `docker compose config -q apps/grafana/compose.yml` | OK |
+| `docker compose config -q apps/whisper-asr/compose.yml` | OK |
+| `just registry-audit` | 9 Apps, 3 Infra, 129 OK, 0 WARN, 0 FAIL |
+| `just runtime-audit` | 31 OK, 12 INFO, 1 WARN (Authentik), 0 FAIL, 18 Container |
+| `just app-health grafana` | state=healthy, http=200 |
+| `just app-health whisper-asr` | state=healthy, http=200 |
+| `just backup-app grafana` | OK, `backups/20260515-141230/grafana-app.tar.gz` |
+| `just backup-app whisper-asr` | OK, `backups/20260515-141230/whisper-asr-app.tar.gz` |
+| `just homepage-generate` | 8 Services (whisper-asr ausgeschlossen wegen default_enabled=false) |
+| `just secrets-audit` | alle Pruefungen bestanden |
+| `just apps-status` | 9 Apps healthy |
+
+Caddy-Snippets fuer beide Apps angelegt (`caddy.disabled` +
+`caddy.authentik.disabled`), **default deaktiviert** - `just caddy-list`
+zeigt keine neuen aktiven Snippets.
+
 ### Gateway-Modularisierung vorbereitet (2026-05-15)
 
 `infra/gateway/compose.yml` ist angelegt, aber **noch nicht aktiv**.

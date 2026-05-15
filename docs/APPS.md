@@ -16,6 +16,8 @@ und standardmaessig deaktiviert.
 | homepage     | Homepage       | 3001 | http://filehub-homepage:3000              | true            | true               | apps/homepage/backup.include         |
 | uptime-kuma  | Uptime Kuma    | 3002 | http://filehub-uptime-kuma:3001           | true            | true               | apps/uptime-kuma/backup.include      |
 | dozzle       | Dozzle         | 9999 | http://filehub-dozzle:8080                | true            | true               | apps/dozzle/backup.include           |
+| grafana      | Grafana        | 3005 | http://filehub-grafana:3000               | true            | true               | apps/grafana/backup.include          |
+| whisper-asr  | Whisper ASR    | 9001 | http://filehub-whisper-asr:9000           | false (opt-in)  | true               | apps/whisper-asr/backup.include      |
 
 Alle Ports binden lokal an `127.0.0.1`. Public-Zugriff laeuft ausschliesslich
 ueber das optionale Gateway (`infra/gateway`).
@@ -88,6 +90,30 @@ Web-Log-Viewer fuer alle laufenden Docker-Container. Stateless.
 
 - Start: `just app-up dozzle`
 - Health: `just app-health dozzle`
+
+### grafana -- Grafana
+
+Metrics-Dashboards (Open-Source-Edition). Eigene SQLite-DB unter
+`data/grafana`. Image laeuft als Host-PUID (statt Grafana-Default
+UID 472), damit Bind-Mount ohne chown nutzbar ist. Erst-Admin-
+Passwort kommt aus `FILEHUB_ADMIN_PASSWORD` und ist nur fuer die
+Initialisierung wirksam - spaetere Aenderung ueber Grafana-UI.
+
+- Start: `just app-up grafana`
+- Health: `just app-health grafana`
+- Provisioning: optional unter `config/grafana/provisioning/`.
+
+### whisper-asr -- Whisper ASR Webservice
+
+Speech-to-Text-API (OpenAI Whisper, CPU-Variante). Hoher RAM-Bedarf,
+Modelldownload beim ersten Start (mehrere GB). `default_enabled=false`
+- bewusst opt-in. Modellcache (`data/whisper-asr/cache`) ist
+**nicht** im Backup enthalten (reproduzierbar). Werks-Default
+`ASR_MODEL=base`.
+
+- Start: `just app-up whisper-asr`
+- Health: `just app-health whisper-asr`
+- Modellauswahl: `WHISPER_ASR_MODEL=tiny|base|small|medium|large` in `.env`.
 
 ## Backup und Restore pro App
 

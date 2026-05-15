@@ -61,6 +61,16 @@ just app-update <id>
 Im Fehlerfall reicht ein Restore der einzelnen App, ohne den Rest der
 Plattform anzufassen.
 
+## Neue Apps (2026-05-15)
+
+- **grafana**: `data/grafana` + `config/grafana/provisioning` werden
+  gesichert. Grafana laeuft als Host-PUID, daher keine Permission-
+  Konflikte beim Restore.
+- **whisper-asr**: nur `data/whisper-asr/work` und Config-Dateien
+  sind im `backup.include`. Der Modellcache
+  (`data/whisper-asr/cache`, mehrere GB) ist **bewusst ausgeschlossen**
+  - die Modelle sind reproduzierbar nachladbar.
+
 ## Verweise
 
 - `docs/backup-restore.md` -- detaillierte Restore-Prozedur.

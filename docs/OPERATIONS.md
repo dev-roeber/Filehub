@@ -192,6 +192,17 @@ Sperren in der Execute-Logik:
 
 Volle Details siehe `docs/MODULAR_RUNTIME_MIGRATION.md`.
 
+## Neue Apps (2026-05-15)
+
+- **grafana** (Port 3005, `default_enabled=true`): Metrics-Dashboards.
+  Image `grafana/grafana:11.4.0`, laeuft als Host-PUID. Erst-Admin
+  via `FILEHUB_ADMIN_PASSWORD`. Provisioning optional unter
+  `config/grafana/provisioning/`.
+- **whisper-asr** (Port 9001, `default_enabled=false` - opt-in):
+  Speech-to-Text. Image
+  `onerahmet/openai-whisper-asr-webservice:v1.7.0` (CPU). Hoher
+  RAM-Bedarf; Modellcache bewusst NICHT im Backup.
+
 ## Verweise
 
 - `docs/APPS.md` -- App-Liste und Quickstart.
