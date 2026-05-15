@@ -1,51 +1,81 @@
 # Lokale Backups: Aufbewahrung und Cleanup
 
-Lokale Backups unter `backups/<timestamp>/` werden derzeit nicht automatisch geloescht. Das ist Absicht: solange das Cloud-Backup nicht ueber laengere Zeit zuverlaessig laeuft und der Cloud-Restore-Smoke regelmaessig gruen ist, bleiben die lokalen Pakete als zweite Linie liegen.
+Stand: 2026-05-15. Lokale Backups unter `backups/<timestamp>/` koennen
+ueber `scripts/local-backup-retention.sh` aufgeraeumt werden. Das
+Skript ist konservativ und loescht nur nach explizitem Doppel-Opt-in.
 
-## Strategie
+## Policy
 
-1. Cloud-Backups via `scripts/backup.sh` + systemd-Timer laufen taeglich.
-2. Cloud-Restore-Smoke wird mindestens monatlich gepruft (siehe `docs/restore-test.md`).
-3. Solange Schritt 2 noch jung ist (weniger als 30 Tage stabil), bleiben alle lokalen Backups erhalten.
-4. Danach kann eine separate, bewusste lokale Retention definiert werden, z. B. `keep last 7 lokale Backups`.
+- Behalte die letzten 7 Backup-Verzeichnisse.
+- Behalte zusaetzlich alles, was juenger als 14 Tage ist, auch wenn es
+  damit mehr als 7 sind.
+- Loesche nie das juengste Backup, unabhaengig von der Policy.
+- Loesche grundsaetzlich nur dann etwas, wenn beide Opt-in-Schalter
+  gesetzt sind (siehe unten).
 
-## Nichts automatisch loeschen
+Die Policy ist absichtlich grosszuegig: solange der Cloud-Restore-Smoke
+nicht regelmaessig laeuft (siehe `docs/restore-test.md`), dient die
+lokale Kopie als zweite Linie.
 
-Es gibt aktuell keinen Cron-, systemd- oder Skript-Pfad, der lokale Backups loescht. Eine lokale Retention wird erst eingefuehrt, wenn:
+## Dry-Run
 
-- Die Cloud-Backups stabil laufen.
-- Der Cloud-Restore-Smoke mehrfach erfolgreich war.
-- Eine Policy explizit beschlossen und in dieser Doku festgehalten ist.
+```bash
+just local-backup-retention-dry-run
+```
 
-## Manuelles Aufraeumen (vorlaeufig nicht empfohlen)
+Das ruft `scripts/local-backup-retention.sh` ohne `--apply` auf und
+listet, welche Verzeichnisse nach Policy entfernt wuerden. Es wird
+nichts geaendert.
 
-Wenn lokal Speicher knapp wird, manuell pruefen:
+## Anwenden (Doppel-Opt-in)
+
+Loeschung erfolgt nur, wenn beide Bedingungen gleichzeitig erfuellt
+sind:
+
+1. Aufruf mit `--apply` (bzw. `just local-backup-retention-apply`).
+2. Umgebungsvariable `LOCAL_BACKUP_RETENTION_APPLY=true` gesetzt.
+
+Beispiel:
+
+```bash
+LOCAL_BACKUP_RETENTION_APPLY=true just local-backup-retention-apply
+```
+
+Fehlt einer der Schalter, bricht das Skript ab und gibt einen Hinweis
+aus. Damit kann ein vergessenes `--apply` keine Daten loeschen, und
+eine versehentlich exportierte Umgebungsvariable allein reicht
+ebenfalls nicht.
+
+## Schutzmechanismen
+
+- Juengster Backup-Pfad wird auch bei Doppel-Opt-in nie geloescht.
+- Verzeichnisse, deren Namen nicht dem Timestamp-Schema entsprechen,
+  werden ignoriert.
+- Symlinks werden nicht verfolgt; das Skript arbeitet ausschliesslich
+  innerhalb von `backups/`.
+- Cloud-Restore-Smoke und restic-Snapshots werden nicht angefasst.
+
+## Manuelle Inspektion
 
 ```bash
 du -sh /home/sebastian/Repos/Filehub/backups/*
-df -h
+ls -1dt /home/sebastian/Repos/Filehub/backups/*/ | head -n 10
 ```
 
-Vor jedem Loeschen pruefen, ob der entsprechende Inhalt mindestens als restic-Snapshot vorliegt:
+Vor einem `--apply`-Lauf empfiehlt sich der Dry-Run plus ein Blick auf
+die aktuellen Snapshots:
 
 ```bash
 set -a && . /home/sebastian/Repos/Filehub/.env && set +a
 restic snapshots --tag filehub-full --compact
 ```
 
-Ein Loeschen ist nur dann vertretbar, wenn die Inhalte nachweisbar als Snapshot existieren UND der letzte Cloud-Restore-Smoke gruen war. Selbst dann zuerst per `mv` in einen separaten Quarantaene-Pfad verschieben und erst nach mehreren Tagen entfernen.
-
 ## Risiken
 
-- Lokale Backups enthalten `paperless-postgres.sql` und tar-Archive mit Anwendungsdaten. Sie sind sensibel und sollten nicht unbedacht kopiert oder geteilt werden.
-- Ohne Cleanup waechst der lokale Speicherbedarf monoton. Bei kleinem Datenvolumen ist das vorerst unkritisch, sollte aber beobachtet werden.
-- Eine spaetere automatische Retention darf nie ohne dokumentierten Dry-Run und Opt-in eingefuehrt werden.
-
-## Naechster Schritt
-
-Nach 30 Tagen stabilen Cloud-Backups eine konkrete lokale Retention-Policy formulieren, z. B.:
-
-- Behalte die letzten 7 lokalen Backup-Verzeichnisse.
-- Loesche aeltere nur, wenn ein erfolgreicher Cloud-Restore-Smoke innerhalb der letzten 30 Tage dokumentiert ist.
-
-Diese Policy bleibt manuell aufrufbar (kein Default-Cron), bis sie sich bewaehrt hat.
+- Lokale Backups enthalten `paperless-postgres.sql` und tar-Archive mit
+  Anwendungsdaten. Sie sind sensibel und gehoeren nicht in unkontrollierte
+  Kopien.
+- Eine falsch konfigurierte Schwelle kann mehr loeschen als beabsichtigt.
+  Dry-Run ist Pflicht.
+- Solange `LOCAL_BACKUP_RETENTION_APPLY=true` nicht gesetzt ist, ist der
+  Pfad sicher.

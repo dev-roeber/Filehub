@@ -50,6 +50,25 @@ Garantie, Gesundheit, Arbeit, Auto, Wohnung, To-Review, Archiviert.
 **Korrespondenten:** Finanzamt, Krankenkasse, Bank, Versicherung,
 Arbeitgeber, Vodafone, Telekom, Amazon, Sonstiges.
 
+## Saved Views
+
+```bash
+./scripts/setup-paperless-saved-views.sh
+```
+
+Idempotent, getrennt von der Baseline. Legt folgende Views an (Sort:
+`added` absteigend, Dashboard und Seitenleiste aktiv):
+
+- **Rechnungen** – Tag `Rechnung` (zusaetzlich Dokumenttyp `Rechnung`,
+  falls vorhanden).
+- **Vertraege** – Tag `Vertrag`.
+- **Steuer** – Tag `Steuer`.
+- **Wichtig** – Tag `Wichtig`.
+- **To-Review** – Tag `To-Review`.
+
+Fehlende Tags werden vorab angelegt. Bestehende Views mit gleichem Namen
+werden via PATCH auf den Soll-Zustand gebracht; es wird nichts geloescht.
+
 ## Consume-Ordner
 
 Pfad auf dem Host:

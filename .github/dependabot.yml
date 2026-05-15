@@ -1,0 +1,31 @@
+# Dependabot-Konfiguration fuer Filehub.
+#
+# Hinweis: Dependabot ist hier vorbereitet, aber im Repo-Setting noch NICHT aktiviert.
+# Image-Tags/Digests in den Compose-Files werden bewusst nicht gepinnt
+# (vgl. zurueckgestellter Punkt zum Image-Pinning).
+version: 2
+updates:
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "deps(docker):"
+
+  # GitHub Actions Updates - aktivieren, sobald .github/workflows/ existiert.
+  # - package-ecosystem: "github-actions"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   open-pull-requests-limit: 3
+  #   labels:
+  #     - "dependencies"
+  #     - "github-actions"
+  #   commit-message:
+  #     prefix: "deps(actions):"

@@ -70,3 +70,22 @@ Das ist gewollt. Wer ein Disaster-Recovery-Backup mit Secrets braucht, setzt
 `INCLUDE_ENV_IN_BACKUP=true` bewusst — und nur fuer einen kontrollierten Lauf in
 eine verschluesselte Senke. Standardweg bleibt: Secrets liegen im
 Passwortmanager und werden bei Bedarf manuell neu deployed.
+
+## Altes Uptime-Kuma DB-Backup
+
+- Existiert: ja (`.secrets/kuma.db.bak.20260514-214850`)
+- Mode: `600`
+- Inhalt: Snapshot der Uptime-Kuma SQLite vor Passwort-Reset; enthaelt
+  Hashes und Konfiguration, keine Klartext-Passwoerter.
+
+Optionen:
+
+a) **Behalten Mode 600** — aktuelle Wahl. Datei bleibt unter `.secrets/`
+   (`700`/`600`), wird durch `.gitignore` ausgeschlossen.
+b) **Verschluesseln** ueber `scripts/export-secrets-encrypted.sh` (age) und
+   anschliessend `.secrets/kuma.db.bak.*` loeschen. Setzt einen age-Recipient
+   voraus; aktuell ist kein Recipient konfiguriert.
+c) **Loeschen** nach expliziter Bestaetigung des Users.
+
+Aktuelle Entscheidung: **a) behalten, Mode 600**, da kein age-Recipient gesetzt
+ist. Nicht loeschen ohne explizite User-Bestaetigung.

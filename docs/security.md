@@ -40,6 +40,9 @@ Konsequenzen:
 - Bei spaeterer Public-Exponierung zuerst eine Auth-Schicht (Caddy/OAuth/Basic-Auth + Rate-Limiting) vorlagern. Ohne Auth keine Public-Freigabe.
 - Reverse-Proxy darf keinen direkten Container-Port ueber `0.0.0.0` durchschleifen.
 - Vor jeder Veroeffentlichung pruefen, ob der Socket-Mount fuer den jeweiligen Dienst noch noetig ist.
+- Hardening-Plan und Alternativen (Socket-Proxy, Dozzle ohne Actions,
+  statische Homepage-Discovery) stehen in
+  `docs/docker-socket-hardening.md`.
 
 ## Filebrowser
 
@@ -59,6 +62,9 @@ gesetzt. Trotzdem gilt:
 - Kein Public Binding.
 - PDFs koennen bei OCR/Konvertierung Ressourcen verbrauchen; bei
   oeffentlicher Exposition zwingend Auth + Rate-Limit vorlagern.
+- **Ressourcenlimits gesetzt:** `cpus: 2.0`, `mem_limit: 4g`,
+  `pids_limit: 512`. Details und Hintergrund in
+  `docs/stirling-pdf.md`.
 
 ## ConvertX
 
@@ -71,6 +77,17 @@ gesetzt. Trotzdem gilt:
   gehoeren in Paperless, nicht in den ConvertX-Verlauf.
 - Vor Public-Exposition: Auth-Schicht (Caddy/OAuth) und Rate-Limit
   zwingend vorlagern.
+
+## Benachrichtigungen (ntfy)
+
+Das ntfy-Topic ist ein **Secret**. Wer den Topic-Namen kennt, kann
+Nachrichten lesen **und** senden, solange der Server keinen
+Auth-Layer hat. Konsequenzen:
+
+- Topic-Name niemals committen, nicht in Issues/PRs posten.
+- Topic-Name nur in `.secrets/` (Mode 600) oder im Passwortmanager.
+- Bei Verdacht auf Leak: Topic wechseln, alle Sender/Empfaenger neu
+  konfigurieren.
 
 ## Backups
 

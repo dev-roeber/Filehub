@@ -61,3 +61,23 @@
     - Restore Test Docs:
         description: docs/restore-test.md
         icon: mdi-restore
+
+- Runbooks und Reports:
+    - Notifications:
+        description: docs/notifications.md (ntfy Topic ist Secret)
+        icon: mdi-bell-ring
+    - Backup-Report:
+        description: just backup-report
+        icon: mdi-clipboard-text-clock
+    - Audit-Report:
+        description: just audit-report
+        icon: mdi-clipboard-list
+    - Update-Runbook:
+        description: docs/update-runbook.md
+        icon: mdi-update
+    - Remote-Zugriff:
+        description: docs/remote-access.md (Tailscale/SSH/Caddy)
+        icon: mdi-vpn
+    - Security-Hinweise:
+        description: docs/security.md + docs/docker-socket-hardening.md
+        icon: mdi-shield-lock

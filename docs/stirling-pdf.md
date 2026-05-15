@@ -41,9 +41,38 @@ Wer ohne Login durchstarten will, muss das bewusst aendern.
 `data/stirling/work` ist auch in Filebrowser unter `/srv/pdf-work` gemountet,
 so dass PDFs einfach zwischen den Tools getauscht werden koennen.
 
+## Ressourcenlimits
+
+In `compose.extensions.yml` gesetzt:
+
+```yaml
+cpus: 2.0
+mem_limit: 4g
+pids_limit: 512
+```
+
+Begrenzt CPU-, RAM- und Prozesszahl pro Container. Schuetzt Host
+gegen entgleisende OCR-/Konvertierungsjobs und Fork-Bomben.
+
+## Cleanup
+
+Das Arbeitsverzeichnis `data/stirling/work` wird nicht automatisch
+geleert. Cleanup via Skript `scripts/stirling-cleanup.sh` mit
+Justfile-Rezepten:
+
+```bash
+just stirling-cleanup-dry-run   # zeigt, was geloescht wuerde
+just stirling-cleanup-apply     # loescht tatsaechlich
+```
+
+Default ist Dry-Run. `-apply` ist ein **bewusstes zweites Opt-in**, das
+Skript fragt zusaetzlich nach Bestaetigung oder erwartet ein
+Confirm-Flag. Vor `-apply` Inhalte des Workdirs pruefen.
+
 ## Sicherheit
 
 - Login aktiv, kein anonymer Zugriff.
 - Kein Public Binding.
 - Upload-Risiko: schadhafte PDFs koennen bei OCR/Konvertierung Ressourcen
-  belasten. Container hat 0 explizite Limits; bei Bedarf `mem_limit` setzen.
+  belasten. Ressourcenlimits sind gesetzt (siehe oben), bei oeffentlicher
+  Exposition zwingend zusaetzlich Auth + Rate-Limit vorlagern.

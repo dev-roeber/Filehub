@@ -53,6 +53,9 @@ services:
       - ./data/stirling/logs:/logs
       - ./data/stirling/pipeline:/pipeline
       - ./data/stirling/work:/tmp/filehub-pdf-work
+    cpus: 2.0
+    mem_limit: 4g
+    pids_limit: 512
     networks:
       - filehub_net
     healthcheck:

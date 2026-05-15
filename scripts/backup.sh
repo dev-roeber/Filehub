@@ -77,16 +77,22 @@ if [[ -n "${RESTIC_REPOSITORY:-}" && -n "${RESTIC_PASSWORD:-}" ]]; then
   [[ -f compose.extensions.yml ]] && restic_paths+=(compose.extensions.yml)
   restic backup --tag filehub-full "${restic_paths[@]}"
   if [[ "${RESTIC_APPLY_RETENTION:-false}" == "true" ]]; then
-    echo "RESTIC_APPLY_RETENTION=true. Wende restic retention mit prune an (nur Tag filehub-full)."
+    prune_args=()
+    if [[ "${RESTIC_APPLY_PRUNE:-false}" == "true" ]]; then
+      echo "RESTIC_APPLY_PRUNE=true. Wende forget + prune an (langsam, sperrt repo)."
+      prune_args=(--prune)
+    else
+      echo "RESTIC_APPLY_RETENTION=true (forget ohne prune). RESTIC_APPLY_PRUNE=true zusaetzlich noetig, um Daten zu reclaimen."
+    fi
     restic forget \
       --tag filehub-full \
       --group-by host,tags \
       --keep-daily "${BACKUP_RETENTION_DAILY:-7}" \
       --keep-weekly "${BACKUP_RETENTION_WEEKLY:-4}" \
       --keep-monthly "${BACKUP_RETENTION_MONTHLY:-6}" \
-      --prune
+      "${prune_args[@]}"
   else
-    echo "Restic retention/prune wird nicht automatisch angewendet. Setze RESTIC_APPLY_RETENTION=true nur bewusst."
+    echo "Restic retention/prune wird nicht automatisch angewendet. Setze RESTIC_APPLY_RETENTION=true nur bewusst (+ RESTIC_APPLY_PRUNE=true fuer prune)."
   fi
 else
   echo "Restic ist nicht konfiguriert. Lokales Backup-Paket wurde vorbereitet."

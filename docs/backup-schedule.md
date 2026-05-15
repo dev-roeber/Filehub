@@ -95,6 +95,47 @@ Die fruehere Pfad-Form `backups/<timestamp>` hat dazu gefuehrt, dass jeder Lauf 
 
 Retention erst nach separater Freigabe aktivieren. Vor jeder Aenderung erneut `--dry-run`.
 
+## Fehler-Alerts via systemd OnFailure
+
+`filehub-backup.service` hat `OnFailure=filehub-backup-alert@%n.service`
+gesetzt. Bricht der Backup-Lauf mit Exit != 0 ab, ruft systemd
+automatisch `deploy/systemd/filehub-backup-alert@.service` auf. Diese
+Unit startet `scripts/backup-alert.sh`, das ueber `scripts/notify.sh`
+eine ntfy-Push-Nachricht mit Service-Name, Exit-Code und Zeitstempel
+sendet.
+
+Voraussetzung: `.secrets/ntfy.env` ist eingerichtet und
+`NTFY_ENABLED=true`. Wenn ntfy deaktiviert ist, bleibt der OnFailure-
+Pfad funktionsfaehig, sendet aber stumm nichts. Setup-Details in
+[notifications.md](notifications.md).
+
+Manuell testen:
+
+```bash
+sudo systemctl start filehub-backup-alert@filehub-backup.service
+```
+
+Damit wird der Alert-Pfad ausgeloest, ohne ein echtes Backup
+fehlschlagen zu lassen.
+
+## Backup-Report
+
+Nach erfolgreichen Laeufen kann ein kompakter Status-Report ueber ntfy
+gesendet werden:
+
+```bash
+just backup-report
+```
+
+Das ruft `scripts/backup-report.sh` auf. Der Report enthaelt die letzten
+Snapshot-IDs (Tag `filehub-full`), Dauer und Groesse des letzten Laufs,
+sowie Hinweise auf Retention-Status. Keine Secrets, keine Pfade aus
+`.secrets/`.
+
+Der Report ist optional und nicht zwingend an den Timer gekoppelt. Er
+kann manuell oder spaeter aus einer separaten systemd-Unit ausgeloest
+werden.
+
 ## Restore-Test-Intervall
 
 Mindestens einmal pro Monat einen Cloud-Restore-Smoke gegen einen separaten Pfad pruefen, siehe `docs/restore-test.md` und `docs/cloud-backup-result-20260514.md`.

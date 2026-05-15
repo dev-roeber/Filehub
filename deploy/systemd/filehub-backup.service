@@ -24,5 +24,7 @@ StandardError=journal
 NoNewPrivileges=true
 PrivateTmp=false
 
+OnFailure=filehub-backup-alert@%n.service
+
 [Install]
 WantedBy=multi-user.target

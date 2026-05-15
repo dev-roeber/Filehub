@@ -113,6 +113,47 @@ docker start filehub-uptime-kuma
 
 Danach `.secrets/uptime-kuma.env` mit dem neuen Passwort aktualisieren und das Setup-Skript erneut starten. Vorher unbedingt ein Backup der DB anlegen, z. B. nach `.secrets/kuma.db.bak.<ts>`.
 
+## Lokale Statuspage
+
+Eine lokale, nicht-publizierte Statuspage fasst alle Filehub-Monitore zusammen.
+Sie ist nur ueber `http://127.0.0.1:3002` erreichbar und nicht oeffentlich, weil
+Uptime Kuma localhost-gebunden laeuft.
+
+Eigenschaften:
+
+- Slug:  `filehub-local`
+- Titel: `Filehub Local Status`
+- Monitor-Gruppe: `Filehub` mit allen 11 Filehub-Monitoren
+- Aufruf: `http://127.0.0.1:3002/status/filehub-local`
+
+### Automatische Anlage
+
+```bash
+./scripts/setup-uptime-kuma-statuspage.sh
+```
+
+Das Skript ist idempotent: existiert die Page bereits, wird sie aktualisiert.
+Es bindet automatisch alle Monitore mit Praefix `Filehub ` ein.
+
+Hinweis zum `published`-Flag: Die `uptime-kuma-api`-Library akzeptiert
+`published=False` beim Speichern, Uptime Kuma persistiert die Page jedoch
+trotzdem als `published=True`. Da der gesamte Filehub-Stack ausschliesslich an
+`127.0.0.1` gebunden ist und keine oeffentliche Erreichbarkeit existiert,
+bleibt die Page faktisch lokal. Wer das Flag erzwingen will, kann es in der
+UI nach dem Lauf manuell auf "Unpublished" setzen.
+
+### Manuell anlegen (Klick-Anleitung)
+
+1. `Settings -> Status Pages -> New Status Page`.
+2. Slug: `filehub-local`, Title: `Filehub Local Status`.
+3. `Add Group` -> Name `Filehub`.
+4. Alle 11 Filehub-Monitore in diese Gruppe ziehen
+   (`Filehub Paperless`, `Filehub ConvertX`, `Filehub Homepage`, `Filehub Dozzle`,
+   `Filehub Uptime Kuma`, `Filehub Gotenberg`, `Filehub Tika`, `Filehub Filebrowser`,
+   `Filehub Stirling PDF`, `Filehub PostgreSQL`, `Filehub Redis`).
+5. `Save`. Nicht publizieren (`Published` aus, soweit moeglich).
+6. Aufruf: `http://127.0.0.1:3002/status/filehub-local`.
+
 ## Daten Sichern
 
 Die Uptime-Kuma-Daten liegen unter `data/uptime-kuma`. `scripts/backup.sh` sichert dieses Verzeichnis als Teil von `observability-data.tar.gz`. Damit sind Monitor-Konfigurationen und Heartbeat-Historie im taeglichen Backup enthalten.
@@ -201,3 +242,91 @@ docker compose -f compose.yml -f compose.paperless.yml -f compose.convertx.yml -
 curl -I http://127.0.0.1:3002
 just health
 ```
+
+## Notifications via ntfy
+
+Stand: 2026-05-15. ntfy ist als Push-Kanal fuer Filehub aktiv (siehe
+[notifications.md](notifications.md)). Uptime Kuma wird mit ntfy
+bevorzugt **automatisch** ueber die `uptime-kuma-api` Python-Library
+(`>=1.2.1`) verkabelt. Die UI-Anleitung weiter unten bleibt als Fallback
+gueltig.
+
+### Automatische Einrichtung (empfohlen)
+
+Voraussetzungen:
+
+- `.secrets/uptime-kuma.env` mit `UPTIME_KUMA_URL`, `UPTIME_KUMA_USER`,
+  `UPTIME_KUMA_PASSWORD` (siehe Abschnitt oben).
+- `.secrets/ntfy.env` mit `NTFY_SERVER_URL` und `NTFY_TOPIC`.
+  Optional `NTFY_PRIORITY_DEFAULT` (`min|low|default|high|max`).
+
+Start:
+
+```bash
+./scripts/setup-uptime-kuma-notifications.sh
+```
+
+Optional einen Test-Push ausloesen:
+
+```bash
+RUN_TEST=1 ./scripts/setup-uptime-kuma-notifications.sh
+```
+
+Eigenschaften:
+
+- Idempotent: existiert eine Notification mit Name `Filehub ntfy`,
+  wird sie aktualisiert (kein Duplikat).
+- `isDefault=True` und `applyExisting=True`: die Notification wird an
+  alle bestehenden und neuen Monitore gehaengt.
+- Zusaetzlich wird jeder Monitor mit Praefix `Filehub ` explizit ueber
+  `edit_monitor(notificationIDList=...)` an die Notification gebunden,
+  ohne IDs zu duplizieren.
+- Loggt keine Secrets oder Topic-Werte.
+- Bricht sicher ab, wenn Pflichtvariablen fehlen oder die API einen
+  Fehler liefert. Keine direkten DB-Zugriffe.
+
+Library-Version 1.2.1 erwartet fuer `NotificationType.NTFY` die Felder
+`ntfyserverurl` (string), `ntfytopic` (string) und `ntfyPriority`
+(int 1..5). Bei aelteren oder neueren Library-Versionen koennen die
+Feldnamen abweichen; in dem Fall in
+`.venv-uptime-kuma/lib/python*/site-packages/uptime_kuma_api/notification_providers.py`
+unter `NotificationType.NTFY` nachschlagen und das Script anpassen.
+
+### Manuelle Einrichtung (Fallback)
+
+1. Uptime Kuma in der UI oeffnen: `http://127.0.0.1:3002`.
+2. Oben rechts auf das Profil-Symbol -> `Settings`.
+3. Linke Sidebar -> `Notifications`.
+4. `Setup Notification` bzw. `Add` klicken.
+5. Notification Type: `ntfy`.
+6. Felder ausfuellen:
+   - **Friendly Name**: `Filehub ntfy`.
+   - **ntfy Server URL**: Wert aus `.secrets/ntfy.env` (`NTFY_SERVER`).
+   - **ntfy Topic**: Wert aus `.secrets/ntfy.env` (`NTFY_TOPIC`).
+   - Priority und Tags optional, default reicht.
+   - Falls der Broker Authentifizierung erzwingt, Token aus
+     `.secrets/ntfy.env` (`NTFY_TOKEN`) eintragen.
+7. **Default enabled** anhaken, damit die Notification automatisch
+   fuer alle Filehub-Monitore aktiv ist und auch neue Monitore sie
+   erben.
+8. `Test` klicken. Auf dem abonnierten ntfy-Client muss eine
+   Test-Nachricht ankommen. Wenn nicht: Server-URL, Topic und Netzwerk
+   pruefen.
+9. `Save`.
+
+### Verifikation
+
+- Im Monitor-Detail (`Edit` eines bestehenden Monitors) erscheint
+  `Filehub ntfy` unter `Notifications` und ist angehakt.
+- Einen Monitor testweise auf eine kaputte URL setzen und nach Ablauf
+  der Retry-Schwelle die Push-Nachricht pruefen. Danach Monitor wieder
+  korrigieren.
+
+### Sicherheit
+
+- Werte aus `.secrets/ntfy.env` werden nur in der Uptime-Kuma-UI
+  eingetragen, nicht in Issues, Commits oder Screenshots.
+- Bei Topic-Rotation muss die Notification in der UI aktualisiert
+  werden, sonst gehen Alarme an das alte Topic.
+- Uptime Kuma selbst bleibt localhost-only. Es gibt kein neues
+  oeffentliches Binding.

@@ -117,3 +117,58 @@ ps-all:
 
 health-all:
     ./scripts/health.sh
+
+# --- Operations: Reports + Cleanup + Notifications ---
+
+notify-test:
+    ./scripts/notify.sh --title "Filehub ntfy test" --message "Manueller Test via justfile" --tags "white_check_mark,filehub"
+
+backup-report:
+    ./scripts/backup-report.sh
+
+backup-report-notify:
+    ./scripts/backup-report.sh --notify
+
+storage-check:
+    ./scripts/storage-check.sh
+
+audit-report:
+    ./scripts/audit-report.sh
+
+audit-report-notify:
+    ./scripts/audit-report.sh --notify
+
+local-backup-retention-dry-run:
+    ./scripts/local-backup-retention.sh
+
+local-backup-retention-apply:
+    LOCAL_BACKUP_RETENTION_APPLY=true ./scripts/local-backup-retention.sh --apply
+
+stirling-cleanup-dry-run:
+    ./scripts/stirling-cleanup.sh
+
+stirling-cleanup-apply:
+    STIRLING_CLEANUP_APPLY=true ./scripts/stirling-cleanup.sh --apply
+
+backup-alert-test:
+    ./scripts/backup-alert.sh --test
+
+backup-alert-install-unit:
+    sudo install -m 0644 deploy/systemd/filehub-backup-alert@.service /etc/systemd/system/filehub-backup-alert@.service
+    sudo install -m 0644 deploy/systemd/filehub-backup.service /etc/systemd/system/filehub-backup.service
+    sudo systemctl daemon-reload
+
+update-safe:
+    @echo "1) backup (manuell)";  ./scripts/backup.sh
+    @echo "2) pull";               {{compose_ext}} pull
+    @echo "3) up -d";               {{compose_ext}} up -d
+    @echo "4) health";              ./scripts/health.sh
+
+setup-uptime-kuma-notifications:
+    ./scripts/setup-uptime-kuma-notifications.sh
+
+setup-uptime-kuma-statuspage:
+    ./scripts/setup-uptime-kuma-statuspage.sh
+
+setup-paperless-saved-views:
+    ./scripts/setup-paperless-saved-views.sh

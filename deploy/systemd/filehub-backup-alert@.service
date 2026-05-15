@@ -1,0 +1,15 @@
+[Unit]
+Description=Filehub Backup-Alert (OnFailure-Handler fuer %i)
+Documentation=file:///home/sebastian/Repos/Filehub/docs/notifications.md
+
+[Service]
+Type=oneshot
+User=sebastian
+Group=sebastian
+WorkingDirectory=/home/sebastian/Repos/Filehub
+Environment=PATH=/home/linuxbrew/.linuxbrew/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=HOME=/home/sebastian
+ExecStart=/home/sebastian/Repos/Filehub/scripts/backup-alert.sh %i
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=true
