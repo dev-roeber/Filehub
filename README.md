@@ -1,8 +1,44 @@
 # Filehub
 
-Filehub ist ein selfhosted Docker-Stack für private Datei-Konvertierung, Dokumentenmanagement, OCR, PDF-/Office-Verarbeitung, Monitoring und Backup-Vorbereitung.
+Filehub ist eine **modulare App-Plattform** für selfhosted Datei-Konvertierung, Dokumentenmanagement, OCR, PDF-/Office-Verarbeitung, Monitoring und Backup.
+
+Jede App ist eigenständig: eigene `compose.yml`, eigene `.env.example`, eigenes Backup, eigener Healthcheck. Es gibt **keinen Monolith** – Apps können einzeln gestartet, gestoppt, gesichert und aktualisiert werden.
 
 Der initiale Betrieb ist bewusst `localhost-only`: Alle Webdienste binden an `127.0.0.1`. Remote-Zugriff erfolgt per SSH-Tunnel, nicht über öffentliche App-Ports.
+
+## Modulares Layout
+
+```
+apps/<id>/        compose.yml, .env.example, backup.include, healthcheck.sh,
+                  caddy.disabled, caddy.authentik.disabled
+infra/<id>/       Optionale Infrastruktur (authentik, caddy, backup, ...)
+config/apps.yml   Maschinenlesbare App-Registry
+```
+
+Single-User-Setup: zentrale Admin-Defaults via `FILEHUB_ADMIN_USER` / `FILEHUB_ADMIN_PASSWORD` (in `.env`, NIE im Repo). Authentik ist optional und **default deaktiviert** (`AUTHENTIK_ENABLED=false`).
+
+Doku-Einstieg:
+- Architektur: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- App-Uebersicht: [docs/APPS.md](docs/APPS.md)
+- Operations: [docs/OPERATIONS.md](docs/OPERATIONS.md)
+- Backup: [docs/BACKUP.md](docs/BACKUP.md)
+- Security: [docs/SECURITY.md](docs/SECURITY.md)
+- Authentik optional: [docs/AUTHENTIK_OPTIONAL.md](docs/AUTHENTIK_OPTIONAL.md)
+
+## Haeufige Kommandos
+
+```
+just app-list                  # alle Apps inkl. Status-Metadaten
+just app-up <app>              # einzelne App starten
+just app-down <app>            # einzelne App stoppen
+just apps-status               # Healthcheck-Uebersicht
+just infra-status              # Authentik/Gateway/Networks
+just backup-app <app>          # nur diese App sichern
+just backup-all                # vollstaendiger Backup-Lauf (bestehend)
+just auth-up                   # nur wenn AUTHENTIK_ENABLED=true
+```
+
+Bestehende Kommandos (`just up`, `just up-core`, `just up-auth`, ...) bleiben kompatibel.
 
 ## Architektur
 
