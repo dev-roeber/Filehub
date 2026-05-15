@@ -1,0 +1,9 @@
+# Caddy reverse_proxy snippet fuer Dozzle (DEAKTIVIERT).
+# Aktivierung: Datei zu .caddy umbenennen UND im Gateway-Caddyfile via
+# `import apps/dozzle/caddy` einbinden (oder Inhalt per handle einbetten).
+# Standardmaessig wird dieses Snippet NICHT geladen.
+
+handle /dozzle/* {
+	uri strip_prefix /dozzle
+	reverse_proxy filehub-dozzle:8080
+}

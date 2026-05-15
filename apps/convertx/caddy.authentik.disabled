@@ -1,0 +1,13 @@
+# Caddy reverse_proxy snippet fuer ConvertX MIT Authentik forward_auth (DEAKTIVIERT).
+# Voraussetzungen: AUTHENTIK_ENABLED=true und Authentik-Outpost konfiguriert.
+# Aktivierung: Datei zu .caddy.authentik umbenennen.
+
+handle /convertx/* {
+	uri strip_prefix /convertx
+	forward_auth filehub-authentik-server:9000 {
+		uri /outpost.goauthentik.io/auth/caddy
+		copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid X-Authentik-Jwt X-Authentik-Meta-Jwks X-Authentik-Meta-Outpost X-Authentik-Meta-Provider X-Authentik-Meta-App X-Authentik-Meta-Version
+		trusted_proxies private_ranges
+	}
+	reverse_proxy filehub-convertx:3000
+}

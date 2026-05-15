@@ -1,0 +1,9 @@
+# Caddy reverse_proxy snippet fuer Filebrowser (DEAKTIVIERT).
+# Aktivierung: Datei zu .caddy umbenennen UND im Gateway-Caddyfile via
+# `import apps/filebrowser/caddy` einbinden (oder Inhalt per handle einbetten).
+# Standardmaessig wird dieses Snippet NICHT geladen.
+
+handle /filebrowser/* {
+	uri strip_prefix /filebrowser
+	reverse_proxy filehub-filebrowser:80
+}

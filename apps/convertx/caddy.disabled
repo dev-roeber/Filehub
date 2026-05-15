@@ -1,0 +1,9 @@
+# Caddy reverse_proxy snippet fuer ConvertX (DEAKTIVIERT).
+# Aktivierung: Datei zu .caddy umbenennen UND im Gateway-Caddyfile via
+# `import apps/convertx/caddy` einbinden (oder Inhalt per handle einbetten).
+# Standardmaessig wird dieses Snippet NICHT geladen.
+
+handle /convertx/* {
+	uri strip_prefix /convertx
+	reverse_proxy filehub-convertx:3000
+}

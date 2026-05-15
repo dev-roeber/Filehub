@@ -1,0 +1,9 @@
+# Caddy reverse_proxy snippet fuer Uptime Kuma (DEAKTIVIERT).
+# Aktivierung: Datei zu .caddy umbenennen UND im Gateway-Caddyfile via
+# `import apps/uptime-kuma/caddy` einbinden (oder Inhalt per handle einbetten).
+# Standardmaessig wird dieses Snippet NICHT geladen.
+
+handle /uptime-kuma/* {
+	uri strip_prefix /uptime-kuma
+	reverse_proxy filehub-uptime-kuma:3001
+}

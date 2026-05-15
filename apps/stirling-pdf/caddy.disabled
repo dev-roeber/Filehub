@@ -1,0 +1,9 @@
+# Caddy reverse_proxy snippet fuer Stirling-PDF (DEAKTIVIERT).
+# Aktivierung: Datei zu .caddy umbenennen UND im Gateway-Caddyfile via
+# `import apps/stirling-pdf/caddy` einbinden (oder Inhalt per handle einbetten).
+# Standardmaessig wird dieses Snippet NICHT geladen.
+
+handle /stirling-pdf/* {
+	uri strip_prefix /stirling-pdf
+	reverse_proxy filehub-stirling-pdf:8080
+}

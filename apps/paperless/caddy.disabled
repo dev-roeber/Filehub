@@ -1,0 +1,9 @@
+# Caddy reverse_proxy snippet fuer Paperless (DEAKTIVIERT).
+# Aktivierung: Datei zu .caddy umbenennen UND im Gateway-Caddyfile via
+# `import apps/paperless/caddy` einbinden (oder Inhalt per handle einbetten).
+# Standardmaessig wird dieses Snippet NICHT geladen.
+
+handle /paperless/* {
+	uri strip_prefix /paperless
+	reverse_proxy filehub-paperless-webserver:8000
+}

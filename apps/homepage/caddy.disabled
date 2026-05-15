@@ -1,0 +1,16 @@
+# Caddy reverse_proxy snippet fuer Homepage (DEAKTIVIERT).
+# Aktivierung: Datei zu .caddy umbenennen UND im Gateway-Caddyfile via
+# `import apps/homepage/caddy` einbinden (oder Inhalt per handle einbetten).
+# Standardmaessig wird dieses Snippet NICHT geladen.
+#
+# Hinweis: Homepage laeuft als Root-App (handle /*), ohne strip_prefix.
+# Begruendung: gethomepage erwartet Assets unter / und nicht unter einem
+# Sub-Pfad; ein Pfad-Prefix wuerde interne Links/Icons brechen. Andere Apps
+# nutzen Pfad-Prefixe, Homepage uebernimmt den Default-Root.
+# Host-Header muss "localhost" sein (HOMEPAGE_ALLOWED_HOSTS=localhost,127.0.0.1).
+
+handle /* {
+	reverse_proxy filehub-homepage:3000 {
+		header_up Host localhost
+	}
+}

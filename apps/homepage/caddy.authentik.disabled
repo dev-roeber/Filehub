@@ -1,0 +1,19 @@
+# Caddy reverse_proxy snippet fuer Homepage MIT Authentik forward_auth (DEAKTIVIERT).
+# Voraussetzungen: AUTHENTIK_ENABLED=true und Authentik-Outpost konfiguriert.
+# Aktivierung: Datei zu .caddy.authentik umbenennen.
+#
+# Hinweis: Homepage laeuft als Root-App (handle /*), ohne strip_prefix.
+# Begruendung: gethomepage erwartet Assets unter / und nicht unter einem
+# Sub-Pfad; ein Pfad-Prefix wuerde interne Links/Icons brechen.
+# Host-Header muss "localhost" sein (HOMEPAGE_ALLOWED_HOSTS=localhost,127.0.0.1).
+
+handle /* {
+	forward_auth filehub-authentik-server:9000 {
+		uri /outpost.goauthentik.io/auth/caddy
+		copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid X-Authentik-Jwt X-Authentik-Meta-Jwks X-Authentik-Meta-Outpost X-Authentik-Meta-Provider X-Authentik-Meta-App X-Authentik-Meta-Version
+		trusted_proxies private_ranges
+	}
+	reverse_proxy filehub-homepage:3000 {
+		header_up Host localhost
+	}
+}
