@@ -1,6 +1,7 @@
 # Validation: modulare App-Struktur
 
-Letztes Update: 2026-05-15 nach Stabilisierungs-Serie (7e9af47..HEAD).
+Letztes Update: 2026-05-15 nach zweiter Stabilisierungs-Serie
+(958e612..HEAD: registry-audit, homepage-apply, caddy-Helper-Haertung).
 
 ## docker compose config
 
@@ -32,6 +33,13 @@ Funktional verifiziert:
 
 Neue Gateway-/Auth-Targets verfuegbar: `gateway-restart`, `gateway-logs`,
 `gateway-reload`, `auth-restart`, `auth-logs`.
+
+Neue Targets (zweite Serie):
+- `just registry-audit` -- 7 Apps, 3 Infra-Module, 103 OK, 0 WARN, 0 FAIL.
+- `just registry-audit-quiet` -- nur Summary.
+- `just homepage-apply` -- atomares Promote services.generated.yaml -> services.yaml.
+- `just homepage-apply-restart` -- wie oben + docker restart filehub-homepage.
+- `just caddy-list` -- ruft scripts/caddy-list.sh (legt enabled/ bei Bedarf an).
 
 Alte Aliase (`up-auth`, `down-auth`, `restart-auth`, `logs-auth`, `up-core`,
 `up-extensions`, ...) bleiben kompatibel.
@@ -94,6 +102,40 @@ Datenbank-Namen, keine Credentials.
 | `scripts/caddy-enable.sh nicht-existent plain` | exit 2, App-Liste in stderr |
 
 Keine erzwungenen Reloads, kein Container-Restart durch den Helper.
+
+## Registry-Audit-Test
+
+| Aufruf | Ergebnis |
+|---|---|
+| `scripts/registry-audit.sh` | 7 Apps, 3 Infra-Module, 103 OK, 0 WARN, 0 FAIL, exit 0 |
+| `scripts/registry-audit.sh --quiet` | nur Summary, exit 0 |
+
+Prueft Pflicht-Artefakte (compose.yml, healthcheck.sh, backup.include,
+README.md) als FAIL, optionale (.env.example, caddy.*.disabled) als WARN.
+Zusaetzlich: id-Regex `^[a-z0-9-]+$`, Port-Uniqueness, Registry-Pfade.
+
+## Homepage-Apply-Test
+
+| Aufruf | Ergebnis |
+|---|---|
+| `scripts/homepage-apply.sh --help` | Usage + Exit-Codes (0/2/3/4) |
+| `scripts/homepage-apply.sh` ohne generated | exit 2 |
+| Apply nach Generate | Backup `services.yaml.bak.<ts>`, atomares mv, exit 0 |
+| `--restart` (nicht im CI-Lauf) | docker restart filehub-homepage |
+
+Keine interaktive Abfrage. Diff-Vorschau (head -40) wird angezeigt.
+
+## Caddy-Helper-Haertung (Roundtrip)
+
+| Aufruf | Ergebnis |
+|---|---|
+| `scripts/caddy-list.sh` (leer) | "(keine aktivierten Snippets)", exit 0 |
+| `scripts/caddy-enable.sh homepage plain` | enabled-Datei kopiert, caddy validate OK |
+| zweiter Aufruf ohne `--force` | exit 4 |
+| zweiter Aufruf mit `--force` (cmp -s) | exit 0 "schon aktuell" |
+| Quelle leer (size 0) | exit 3 |
+| `scripts/caddy-disable.sh homepage` | Datei entfernt, idempotent |
+| Symlink-Target ausserhalb enabled/ | exit 5 (Schutz) |
 
 ## Keine destruktiven Aenderungen
 
