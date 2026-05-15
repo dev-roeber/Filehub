@@ -1,0 +1,38 @@
+# Homepage (gethomepage) - eigenstaendige Compose-Definition.
+# Bestehende compose.observability.yml im Repo-Root bleibt parallel kompatibel.
+# Aufruf:  docker compose --env-file ../../.env -f compose.yml up -d
+
+name: filehub
+
+networks:
+  filehub_net:
+    name: filehub_net
+    external: true
+
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: filehub-homepage
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${HOMEPAGE_PORT:-3001}:3000"
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: localhost,127.0.0.1
+      PUID: ${PUID}
+      PGID: ${PGID}
+    volumes:
+      - ../../config/homepage:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - filehub_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

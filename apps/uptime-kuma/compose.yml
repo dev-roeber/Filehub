@@ -1,0 +1,33 @@
+# Uptime Kuma - eigenstaendige Compose-Definition.
+# Bestehende compose.observability.yml im Repo-Root bleibt parallel kompatibel.
+# Aufruf:  docker compose --env-file ../../.env -f compose.yml up -d
+
+name: filehub
+
+networks:
+  filehub_net:
+    name: filehub_net
+    external: true
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: filehub-uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${UPTIME_KUMA_PORT:-3002}:3001"
+    volumes:
+      - ../../data/uptime-kuma:/app/data
+    networks:
+      - filehub_net
+    healthcheck:
+      test: ["CMD-SHELL", "node extra/healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

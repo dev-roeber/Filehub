@@ -1,0 +1,51 @@
+# Stirling-PDF - eigenstaendige Compose-Definition.
+# Bestehende compose.extensions.yml im Repo-Root bleibt parallel kompatibel.
+# Aufruf:  docker compose --env-file ../../.env -f compose.yml up -d
+
+name: filehub
+
+networks:
+  filehub_net:
+    name: filehub_net
+    external: true
+
+services:
+  stirling-pdf:
+    image: stirlingtools/stirling-pdf:latest
+    container_name: filehub-stirling-pdf
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${STIRLING_PDF_PORT:-3004}:8080"
+    env_file:
+      - ../../.secrets/stirling-pdf.env
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      SYSTEM_DEFAULTLOCALE: de-DE
+      UI_APPNAME: Filehub PDF
+      UI_APPNAMENAVBAR: Filehub PDF
+      SECURITY_ENABLELOGIN: "true"
+      DISABLE_ADDITIONAL_FEATURES: "false"
+      LANGS: de_DE,en_US
+    volumes:
+      - ../../data/stirling/trainingData:/usr/share/tessdata
+      - ../../data/stirling/extraConfigs:/configs
+      - ../../data/stirling/customFiles:/customFiles
+      - ../../data/stirling/logs:/logs
+      - ../../data/stirling/pipeline:/pipeline
+      - ../../data/stirling/work:/tmp/filehub-pdf-work
+    cpus: 2.0
+    mem_limit: 4g
+    pids_limit: 512
+    networks:
+      - filehub_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null -w '%{http_code}' http://localhost:8080/ | grep -qE '^(200|302|401)$' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

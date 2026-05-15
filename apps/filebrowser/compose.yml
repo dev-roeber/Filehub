@@ -1,0 +1,42 @@
+# Filebrowser - eigenstaendige Compose-Definition.
+# Bestehende compose.extensions.yml im Repo-Root bleibt parallel kompatibel.
+# Aufruf:  docker compose --env-file ../../.env -f compose.yml up -d
+
+name: filehub
+
+networks:
+  filehub_net:
+    name: filehub_net
+    external: true
+
+services:
+  filebrowser:
+    image: filebrowser/filebrowser:s6
+    container_name: filehub-filebrowser
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FILEBROWSER_PORT:-3003}:80"
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      FB_BASEURL: ""
+    volumes:
+      - ../../data/filebrowser/database:/database
+      - ../../config/filebrowser:/config
+      - ../../data/filebrowser/root:/srv
+      - ../../data/paperless/consume:/srv/paperless-consume
+      - ../../data/stirling/work:/srv/pdf-work
+    networks:
+      - filehub_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- -T 5 http://localhost:80/health >/dev/null 2>&1 || wget -qO- -T 5 http://localhost:80/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
