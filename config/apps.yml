@@ -106,9 +106,10 @@ apps:
 infra:
   - id: gateway
     name: Filehub Gateway (Caddy)
-    compose: compose.auth.yml
+    compose: infra/gateway/compose.yml
+    compose_root: compose.auth.yml
     port: 3080
-    description: Reverse-Proxy fuer optionale SSO-Integration
+    description: Reverse-Proxy fuer optionale SSO-Integration (Cutover ausstehend)
 
   - id: authentik
     name: Authentik

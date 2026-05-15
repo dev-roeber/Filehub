@@ -385,6 +385,25 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 9b) Gateway-Quelle (Infrastruktur, kein App-Cutover-Pfad)
+# ---------------------------------------------------------------------------
+# Gateway laeuft entweder aus compose.auth.yml (Bootstrap) oder aus
+# infra/gateway/compose.yml (nach Gateway-Cutover). INFO/WARN, nie FAIL.
+if docker inspect filehub-gateway >/dev/null 2>&1; then
+  gw_cfg="$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}' filehub-gateway 2>/dev/null || true)"
+  gw_state="$(docker inspect --format '{{.State.Status}}' filehub-gateway 2>/dev/null || echo unknown)"
+  if echo "$gw_cfg" | grep -q "infra/gateway/compose.yml"; then
+    emit OK gateway "filehub-gateway laeuft aus infra/gateway/ (Cutover erledigt, state=$gw_state)"
+  elif echo "$gw_cfg" | grep -qE "compose\.auth\.yml"; then
+    emit INFO gateway "filehub-gateway laeuft aus compose.auth.yml (Bootstrap-Phase, Cutover ausstehend)"
+  else
+    emit WARN gateway "filehub-gateway laeuft aus unbekannter Quelle (cfg=$gw_cfg)"
+  fi
+else
+  emit INFO gateway "filehub-gateway nicht aktiv"
+fi
+
+# ---------------------------------------------------------------------------
 # 10) 0.0.0.0-Bindings auf laufenden App-Containern
 # ---------------------------------------------------------------------------
 for name in "${RUNNING_FILEHUB[@]}"; do
