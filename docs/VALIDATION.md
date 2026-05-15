@@ -413,6 +413,24 @@ Caddy-Snippets fuer beide Apps angelegt (`caddy.disabled` +
 `caddy.authentik.disabled`), **default deaktiviert** - `just caddy-list`
 zeigt keine neuen aktiven Snippets.
 
+### Gateway-Cutover live (2026-05-15)
+
+Ausgefuehrt manuell (Schritt-fuer-Schritt aus `docs/GATEWAY_MIGRATION_RUNBOOK.md`),
+exit 0, **kein Rollback** noetig.
+
+Eckdaten:
+- Caddyfile-Backup: `config/caddy/filehub-gateway.Caddyfile.bak.20260515-142551`
+  (lokal, nicht im Git).
+- Stop+rm filehub-gateway aus `compose.auth.yml`.
+- Start aus `infra/gateway/compose.yml`.
+- Caddy validate: OK (`automatic HTTPS is completely disabled`, kein Fehler).
+- HTTP-Probe /_health: 200, root: 302 (Forward-Auth-Redirect).
+- gateway-bootstrap-check: STATE=POST-BOOTSTRAP.
+- gateway-migration-status: SOURCE=infra, HEALTH=healthy.
+- runtime-audit: `OK gateway filehub-gateway laeuft aus infra/gateway/`.
+
+Stand: Gateway modular, Authentik-Cutover bleibt naechster Schritt.
+
 ### Gateway-Modularisierung vorbereitet (2026-05-15)
 
 `infra/gateway/compose.yml` ist angelegt, aber **noch nicht aktiv**.
