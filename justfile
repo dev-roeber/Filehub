@@ -142,6 +142,15 @@ registry-audit:
 registry-audit-quiet:
     ./scripts/registry-audit.sh --quiet
 
+runtime-audit:
+    ./scripts/runtime-audit.sh
+
+runtime-audit-quiet:
+    ./scripts/runtime-audit.sh --quiet
+
+runtime-audit-strict:
+    ./scripts/runtime-audit.sh --strict
+
 audit-report-notify:
     ./scripts/audit-report.sh --notify
 

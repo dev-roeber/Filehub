@@ -50,6 +50,13 @@ section "backup-report"
 section "registry-audit (Modularitaet)"
 ./scripts/registry-audit.sh --quiet 2>&1 | tail -15 || true
 
+section "runtime-audit (Drift Registry<->Docker)"
+if docker info >/dev/null 2>&1; then
+  ./scripts/runtime-audit.sh --quiet 2>&1 | tail -20 || true
+else
+  echo "WARN: docker nicht erreichbar - runtime-audit uebersprungen."
+fi
+
 if [[ "$notify" -eq 1 && -f .secrets/ntfy.env ]]; then
   summary=$(./scripts/backup-report.sh 2>/dev/null)
   ./scripts/notify.sh --title "Filehub Audit-Report" \
