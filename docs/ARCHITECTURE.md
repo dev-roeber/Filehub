@@ -61,10 +61,25 @@ Solange Authentik deaktiviert ist, laufen alle Apps standalone.
 - Justfile-Helfern (`just app-up <id>`, `just apps-status`, ...)
 - Homepage-Generator
 - Backup-Aggregator (`scripts/backup.sh`)
-- Audit-Report (`just audit-report`)
+- Audit-Report (`just audit-report` -> registry-audit + runtime-audit)
 
 Neue Apps werden hier registriert. Wer den Eintrag vergisst, wird vom Audit
 auffallen.
+
+### Zwei Audit-Ebenen
+
+- **registry-audit** prueft die Dateistruktur gegen `config/apps.yml`
+  (Pflicht-Artefakte, Pfade, Port-Uniqueness). Read-only auf Filesystem.
+- **runtime-audit** prueft Drift gegen die laufenden Container
+  (`container_name`-Konflikte, Hostport-Bindings, Health, Authentik-Status).
+  Read-only via `docker info`, `docker ps`, `docker compose config -q`.
+
+Beide tolerieren WARN-Befunde im Default. `--strict` macht WARN zu exit 1
+fuer CI/Schedules. FAIL liefert immer exit 2.
+
+Wichtige Invariante: `apps/<id>/compose.yml` und Root-`compose.*.yml`
+teilen sich denselben `container_name`. Doppelstart ist Docker-seitig
+gesperrt. `runtime-audit` markiert die Doppelnennung als INFO.
 
 ## Migration vom Compose-Sammelsurium
 

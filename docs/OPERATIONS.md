@@ -6,21 +6,69 @@ Justfile gebuendelt und arbeiten gegen die App-Registry `config/apps.yml`.
 ## Status und Audit
 
 ```
-just apps-status        # Compose-Status aller registrierten Apps
-just infra-status       # Status der Infrastruktur (Gateway, Backup, Authentik)
-just audit-report       # Gesamt-Auditreport (inkl. registry-audit am Ende)
-just registry-audit     # Reine Konsistenzpruefung Registry <-> Filesystem
-just registry-audit-quiet # nur WARN/FAIL + Summary
+just apps-status            # Compose-Status aller registrierten Apps
+just infra-status           # Status der Infrastruktur (Gateway, Backup, Authentik)
+just audit-report           # Gesamt-Report (inkl. registry- + runtime-audit)
+just registry-audit         # Datei-Konsistenz Registry <-> Filesystem
+just registry-audit-quiet   # nur WARN/FAIL + Summary
+just runtime-audit          # Drift Registry <-> Compose <-> laufende Container
+just runtime-audit-quiet    # nur WARN/FAIL + Summary
+just runtime-audit-strict   # WARN -> exit 1 (fuer CI/Schedules)
 ```
 
-`registry-audit` prueft pro App: id-Regex, Verzeichnis, Pflicht-Artefakte
-(compose.yml, healthcheck.sh, backup.include, README.md) als FAIL, optionale
-Artefakte (.env.example, caddy.*.disabled) als WARN, Registry-Pfade
-(compose/health/backup_include), Port-Uniqueness und id-Sicherheit.
-Infra-Modul `authentik` wird separat geprueft.
+### registry-audit vs runtime-audit
 
-Exit-Code: 0 bei `FAIL=0` (auch mit WARNs), sonst 1. `audit-report` ruft
-`registry-audit --quiet` zusaetzlich auf und zeigt die letzten Zeilen.
+| Ebene | Prueft | Quelle |
+|---|---|---|
+| registry-audit | Dateistruktur: id-Regex, Pflicht-Artefakte, Registry-Pfade, Port-Uniqueness | nur Dateisystem |
+| runtime-audit | Drift: `docker compose config`, container_name-Konflikte, Hostport-Bindings, laufende Container, Health, Authentik-Status | Docker + Dateisystem |
+
+Empfohlene Reihenfolge: erst `registry-audit` (Struktur), dann `runtime-audit`
+(Live-Zustand). `audit-report` ruft beide nacheinander.
+
+### Klassifikation der Findings
+
+- **OK**: erwartet und korrekt.
+- **INFO**: bewusste Kompatibilitaet (z.B. identischer `container_name` in
+  `apps/<id>/compose.yml` und Root-`compose.*.yml` — siehe unten).
+- **WARN**: Drift, der manuelles Nachsehen rechtfertigt (fehlender optionaler
+  Artefakt, Authentik laeuft obwohl `AUTHENTIK_ENABLED=false`, starting Health,
+  Container ohne Healthcheck). Bricht Default-Lauf nicht ab; `--strict` schon.
+- **FAIL**: harte Drift (container_name-Konflikt zwischen zwei modularen
+  Compose-Dateien, `0.0.0.0`-Bind auf App-Container, Registry-Port stimmt
+  nicht mit Compose-Port ueberein, unhealthy Container). Exit 2.
+
+Exit-Codes:
+- 0 bei `FAIL=0` (WARN toleriert).
+- 1 bei `--strict` und WARN>0.
+- 2 bei FAIL>0.
+
+### Root-Compose vs apps/&lt;id&gt;/compose.yml
+
+`container_name` ist in beiden Welten identisch, damit ein gradueller
+Wechsel ohne Bruch moeglich ist. **Niemals beide gleichzeitig starten** —
+Docker lehnt einen zweiten Start mit dem gleichen Namen ab und der laufende
+Stack waere unbrauchbar. `runtime-audit` markiert diese Doppelnennung als
+INFO. Aktiver Betrieb laeuft weiterhin aus Root-Compose; die modularen
+`apps/<id>/compose.yml` stehen fuer den geplanten spaeteren Cutover bereit.
+
+### 127.0.0.1-Bindings
+
+`runtime-audit` parsed `ports:`-Bloecke aus jeder `apps/<id>/compose.yml`
+und meldet abweichende Bindings:
+- `0.0.0.0:<port>:` auf einem App-Container: **FAIL**.
+- Bind ohne Host-Praefix: **WARN** (Docker bindet defaultmaessig 0.0.0.0).
+- `127.0.0.1:<port>:`: OK.
+
+Authentik-Container sind von dieser Regel ausgenommen, weil sie ohne
+Hostport laufen und der Gateway sie ueber `authentik_net` erreicht.
+
+### Authentik bleibt optional
+
+`runtime-audit` liest `AUTHENTIK_ENABLED` zuerst aus `.env`, fallback
+`.env.example`. Inkonsistenzen werden als WARN ausgegeben (nicht FAIL),
+damit der Phase-1-Bootstrap-Stack weiterlaufen kann, ohne den Audit rot
+zu faerben.
 
 ## Single-App-Lifecycle
 
