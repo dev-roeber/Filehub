@@ -276,3 +276,17 @@ backup-all:
 
 homepage-generate:
     ./scripts/homepage-from-registry.py
+
+# --- Caddy Snippet Helper ---
+
+caddy-enable app:
+    ./scripts/caddy-enable.sh {{app}} plain
+
+caddy-enable-auth app:
+    ./scripts/caddy-enable.sh {{app}} authentik
+
+caddy-disable app:
+    ./scripts/caddy-disable.sh {{app}}
+
+caddy-list:
+    @ls -1 infra/caddy/snippets/enabled/ 2>/dev/null | grep -v '^\.gitkeep$' || echo "(keine aktivierten Snippets)"

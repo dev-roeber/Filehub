@@ -38,6 +38,35 @@ Default-Stack ohne SSO erreichbar.
 
 Es darf jeweils nur **eine** Variante pro App aktiv sein.
 
+## Helper: `scripts/caddy-enable.sh` / `scripts/caddy-disable.sh`
+
+Statt manuell zu kopieren oder umzubenennen, gibt es einen Helper, der das
+gewuenschte Snippet nach `infra/caddy/snippets/enabled/<app>.caddy`
+**kopiert** (nicht symlinkt, damit der Caddy-Volume-Mount stabil bleibt):
+
+```sh
+# Plain (ohne Auth, Default):
+scripts/caddy-enable.sh paperless
+# oder:           scripts/caddy-enable.sh paperless plain
+
+# Mit Authentik forward_auth:
+scripts/caddy-enable.sh paperless authentik
+
+# Ueberschreiben (Default: exit 4 wenn Ziel schon existiert):
+scripts/caddy-enable.sh paperless plain --force
+
+# Wieder deaktivieren (idempotent):
+scripts/caddy-disable.sh paperless
+```
+
+Exit-Codes von `caddy-enable.sh`: `2` = App unbekannt, `3` = Snippet fehlt,
+`4` = Ziel existiert (nutze `--force`). Wenn der Container `filehub-gateway`
+laeuft, wird zusaetzlich `caddy validate` ausgefuehrt; ein Reload wird
+**nicht** automatisch ausgeloest.
+
+Justfile-Targets: `just caddy-enable <app>`, `just caddy-enable-auth <app>`,
+`just caddy-disable <app>`, `just caddy-list`.
+
 ## Path-Strip-Konvention
 
 Jede App ist ueber ein Pfad-Prefix erreichbar (`/paperless/*`,
