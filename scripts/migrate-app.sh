@@ -580,9 +580,13 @@ fi
 # ---------------------------------------------------------------------------
 if [[ "$MODE" == "--execute" ]]; then
 
-  # Allow-Liste: homepage (erledigt) + filebrowser (Phase B).
-  # Weitere Apps werden in spaeteren Phasen einzeln freigeschaltet.
-  EXECUTE_ALLOWED_APPS=("homepage" "filebrowser")
+  # Allow-Liste: homepage (Phase A), filebrowser (Phase B), stirling-pdf (Phase C-1).
+  # paperless (Phase C-2) ist NUR ueber --allow-paperless erreichbar.
+  EXECUTE_ALLOWED_APPS=("homepage" "filebrowser" "stirling-pdf")
+  # Apps, die zusaetzlich --allow-paperless erfordern (Multi-Container-Sonderfall)
+  if [[ "$APP" == "paperless" && $ALLOW_PAPERLESS -eq 1 ]]; then
+    EXECUTE_ALLOWED_APPS+=("paperless")
+  fi
   allowed=0
   for a in "${EXECUTE_ALLOWED_APPS[@]}"; do
     [[ "$a" == "$APP" ]] && allowed=1

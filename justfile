@@ -172,6 +172,9 @@ migrate-execute-homepage:
 migrate-execute-filebrowser:
     ./scripts/migrate-app.sh filebrowser --execute --yes-i-am-sure
 
+migrate-execute-stirling-pdf:
+    ./scripts/migrate-app.sh stirling-pdf --execute --yes-i-am-sure
+
 audit-report-notify:
     ./scripts/audit-report.sh --notify
 
