@@ -278,6 +278,41 @@ Validierung nach Cutover:
 
 Stand: homepage + filebrowser + stirling-pdf migriert (source=app), 4 Apps source=root.
 
+### Live-Cutover paperless (2026-05-15)
+
+Ausgefuehrt: `just migrate-execute-paperless-careful`, exit 0, **kein Rollback** noetig.
+
+Ablauf-Eckdaten:
+- Reihenfolge-Pruefung: homepage + filebrowser + stirling-pdf source=app OK.
+- Preflight: 10 von 10 OK.
+- Backup-Artefakt: `backups/20260515-123914/paperless-app.tar.gz`.
+- Stop-Reihenfolge: webserver -> tika -> gotenberg -> redis -> db (alle 5).
+- rm -f Reihenfolge: webserver -> tika -> gotenberg -> redis -> db (Volumes erhalten).
+- App-Compose-Start: depends_on regelte korrekt Reihenfolge (db,redis,gotenberg,tika -> healthy -> webserver).
+- Healthcheck-Loop: paperless-Default 300s/10s, multi-check (5 Container + http-Probe webserver), bestanden bei Versuch 3 (~30s).
+- Post-Audit: 25 OK, 11 INFO, 1 WARN (Authentik), 0 FAIL.
+
+Validierung nach Cutover:
+| Check | Ergebnis |
+|---|---|
+| `just app-health paperless` | state=healthy, http=302 (Redirect zu Login) |
+| HTTP-Probe 127.0.0.1:8000/ | 302 |
+| `just migration-status` (paperless) | source=app, run=yes, health=healthy, +4 Helper |
+| `just apps-status` | alle 7 Apps healthy |
+| `just runtime-audit` | 0 FAIL |
+| `just backup-age paperless` | OK 0h 1min |
+| Bind-Mounts | identische Pfade in App- und Root-Compose -> Daten erhalten |
+| Andere Apps source | bleiben source=root (convertx, uptime-kuma, dozzle) |
+
+Stand: homepage + filebrowser + stirling-pdf + paperless migriert (source=app), 3 Apps source=root.
+
+### Phase C abgeschlossen
+
+| App | Status | Healthcheck-Loop |
+|---|---|---|
+| stirling-pdf | source=app | ~25s (Versuch 6) |
+| paperless | source=app | ~30s (Versuch 3, 300s/10s Defaults) |
+
 ### Migrationsreihenfolge im Code
 
 `scripts/migrate-app.sh` haelt `MIGRATION_ORDER`:
