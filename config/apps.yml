@@ -133,14 +133,15 @@ infra:
     compose: infra/gateway/compose.yml
     compose_root: compose.auth.yml
     port: 3080
-    description: Reverse-Proxy fuer optionale SSO-Integration (Cutover ausstehend)
+    description: Reverse-Proxy fuer optionale SSO-Integration (modular)
 
   - id: authentik
     name: Authentik
-    compose: compose.auth.yml
+    compose: infra/authentik/compose.yml
+    compose_root: compose.auth.yml
     port: 9000
     default_enabled: false
-    description: Identity Provider - optional, default deaktiviert
+    description: Identity Provider - optional (modular, AUTHENTIK_ENABLED=true in .env)
 
   - id: backup
     name: Restic Backup
