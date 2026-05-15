@@ -273,3 +273,6 @@ backup-app app:
 
 backup-all:
     ./scripts/app.sh backup-all
+
+homepage-generate:
+    ./scripts/homepage-from-registry.py

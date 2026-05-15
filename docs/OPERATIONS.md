@@ -84,3 +84,15 @@ gibt Exit-Code 0 zurueck, wenn die App gesund ist.
 - `docs/BACKUP.md` -- Modulares Backup.
 - `docs/update-runbook.md` -- detaillierter Update-Runbook.
 - `docs/operations.md` -- bestehende Ops-Notizen (kleines o).
+
+## Homepage-Generator
+
+`just homepage-generate` liest `config/apps.yml` und erzeugt eine
+gethomepage-kompatible Datei `config/homepage/services.generated.yaml`.
+
+- Das Script ueberschreibt **nicht** die aktive `services.yaml`.
+- Aktivierung manuell: `diff config/homepage/services.yaml config/homepage/services.generated.yaml`,
+  dann bewusst per `mv` / `cp` ueberschreiben und Homepage neu laden.
+- Quelle der Wahrheit fuer Ports, Container und Beschreibungen ist die Registry
+  `config/apps.yml` (Felder `port`, `internal_url`, `description`, `category`,
+  `default_enabled`).

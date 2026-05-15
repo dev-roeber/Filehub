@@ -1,0 +1,38 @@
+# AUTO-GENERATED aus config/apps.yml by scripts/homepage-from-registry.py.
+# NICHT manuell editieren - aenderbar ist die Registry oder das Generator-Script.
+# Aktivierung: services.generated.yaml mit services.yaml vergleichen, dann
+# bewusst zu services.yaml umbenennen oder Homepage neu starten.
+
+- Productivity:
+    - Paperless-ngx:
+        href: http://127.0.0.1:8000
+        description: Dokumentenmanagement mit OCR
+        container: filehub-paperless-webserver
+
+- Utility:
+    - ConvertX:
+        href: http://127.0.0.1:3000
+        description: Format-Konvertierung (Dateien)
+        container: filehub-convertx
+    - Stirling PDF:
+        href: http://127.0.0.1:3004
+        description: PDF-Toolkit
+        container: filehub-stirling-pdf
+    - Filebrowser:
+        href: http://127.0.0.1:3003
+        description: Web-Dateibrowser
+        container: filehub-filebrowser
+
+- Observability:
+    - Homepage:
+        href: http://127.0.0.1:3001
+        description: Dashboard (kein Pflichteinstieg)
+        container: filehub-homepage
+    - Uptime Kuma:
+        href: http://127.0.0.1:3002
+        description: Uptime-Monitoring
+        container: filehub-uptime-kuma
+    - Dozzle:
+        href: http://127.0.0.1:9999
+        description: Docker-Log-Viewer
+        container: filehub-dozzle
