@@ -164,9 +164,11 @@ just backup-age <app>               # Existenz + Alter des App-Backups
 Execute (sukzessive Freigabe je App):
 
 ```
-just migrate-execute-homepage       # Phase A, erledigt
-just migrate-execute-filebrowser    # Phase B, erledigt
-# stirling-pdf/paperless/convertx/uptime-kuma/dozzle folgen einzeln.
+just migrate-execute-homepage             # Phase A, erledigt
+just migrate-execute-filebrowser          # Phase B, erledigt
+just migrate-execute-stirling-pdf         # Phase C-1, erledigt
+just migrate-execute-paperless-careful    # Phase C-2, erledigt (Multi-Container)
+# convertx/uptime-kuma/dozzle folgen einzeln.
 ```
 
 Die Reihenfolge (homepage -> filebrowser -> stirling-pdf -> paperless ->

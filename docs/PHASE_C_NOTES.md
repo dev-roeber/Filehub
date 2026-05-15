@@ -4,11 +4,11 @@ Erstellt: 2026-05-15. Phase C ist der fachliche Block "Dokumentenverarbeitung".
 Technisch werden beide Apps einzeln migriert. Diese Notiz fasst die
 Dry-Run-Ergebnisse und die noch offenen Voraussetzungen zusammen.
 
-Stand:
-- `homepage` source=app (Phase A, erledigt).
-- `filebrowser` source=app (Phase B, erledigt).
-- `stirling-pdf` source=root (vorbereitet).
-- `paperless` source=root (vorbereitet, **noch nicht** ausfuehrbar).
+Stand (nach Phase C abgeschlossen, 2026-05-15):
+- `homepage` source=app (Phase A).
+- `filebrowser` source=app (Phase B).
+- `stirling-pdf` source=app (Phase C-1, ~25s Healthcheck).
+- `paperless` source=app (Phase C-2, ~30s Multi-Container-Healthcheck).
 
 ## stirling-pdf
 
@@ -125,9 +125,15 @@ auch mit `--yes-i-am-sure`. Sonderfreigabe nur ueber
 `--allow-paperless` + `--yes-i-am-sure` *und* Aufnahme von `paperless`
 in die Allow-Liste. Beides bewusst nicht in dieser Phase.
 
-## Naechster Schritt
+## Naechster Schritt (Phase D)
 
-1. Allow-Liste in `migrate-app.sh` um `stirling-pdf` erweitern.
-2. `just migrate-execute-stirling-pdf` Target anlegen.
-3. Live-Cutover stirling-pdf nach selbem Schema wie homepage/filebrowser.
-4. Paperless-Sonderlogik separat planen und implementieren.
+Phase C ist abgeschlossen. Naechster geplanter Live-Cutover: **convertx**.
+ConvertX hat eigene SQLite-Volumes, ist aber Single-Container und
+strukturell vergleichbar zu homepage/filebrowser/stirling-pdf.
+
+Vor Phase D:
+1. Allow-Liste in `migrate-app.sh` um `convertx` erweitern.
+2. `just migrate-execute-convertx` Target anlegen.
+3. Live-Cutover convertx.
+4. Danach Phase E: uptime-kuma. Phase F: dozzle. Danach Authentik in
+   separater Sonderphase (eigene Doku).

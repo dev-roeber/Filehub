@@ -44,11 +44,11 @@ ob alle Vorgaenger `source=app` haben.
 |---|---|---|
 | A | homepage | erledigt (2026-05-15) |
 | B | filebrowser | erledigt (2026-05-15) |
-| C | stirling-pdf | vorbereitet, Dry-Run gruen |
-| C | paperless | Sonderfall, nur Dry-Run, eigene Phase mit Wartungsfenster |
-| D | convertx | folgt |
-| E | uptime-kuma | folgt |
-| F | dozzle | folgt |
+| C-1 | stirling-pdf | erledigt (2026-05-15) |
+| C-2 | paperless | erledigt (2026-05-15, Multi-Container-Cutover) |
+| D | convertx | naechster Live-Cutover |
+| E | uptime-kuma | folgt nach convertx |
+| F | dozzle | folgt zuletzt |
 | -- | authentik | separate Phase, blockiert in migrate-app.sh |
 
 ### Warum diese Reihenfolge
@@ -151,26 +151,46 @@ Konsequenzen:
 - Wenn Healthchecks failen: Rollback sofort durchziehen, nicht
   rumbasteln.
 
-### TODOs vor Paperless-Cutover
+### Implementierte Paperless-Sonderlogik (Phase C-2, erledigt)
 
-`migrate-app.sh --print-commands paperless` ist aktuell **zu generisch**:
-es stoppt nur `paperless-db`, nicht die Helper und nicht den Webserver.
-Vor dem ersten Paperless-Cutover muss daher:
+`migrate-app.sh` behandelt paperless seit Phase C-2 als Multi-Container-
+Sonderfall:
 
-1. Paperless-spezifische Stop-/Start-Reihenfolge im Script codieren:
-   - Stop: webserver -> tika -> gotenberg -> redis -> db
-   - Start (via App-Compose): db -> redis -> tika -> gotenberg -> webserver
-2. `MIGRATE_HEALTH_TIMEOUT_SECONDS=300` als Default fuer paperless setzen.
-3. Healthcheck darf erst dann "OK" melden, wenn alle 5 Container healthy
-   sind (nicht nur der Primary).
-4. Pflicht-Backup ist bereits da -- nur explizit dokumentieren.
-5. Restore-Hinweis: bei DB-Korruption Wiederherstellung via
-   `backups/<TS>/paperless-postgres.sql` + Restic-Snapshot
-   `data/paperless`.
+1. **Stop-Reihenfolge**: webserver -> tika -> gotenberg -> redis -> db.
+2. **rm -f Reihenfolge**: identisch.
+3. **Start**: `just app-up paperless` (depends_on regelt Reihenfolge:
+   db,redis,gotenberg,tika -> healthy -> webserver).
+4. **Healthcheck-Loop**: Defaults 300s/10s, multi-check ueber alle 5
+   Container (state=running + Health) plus HTTP-Probe Webserver
+   (Code 200 oder 302).
+5. **Rollback**: `just app-down paperless`, dann Root-Compose in
+   Reverse-Order (db -> redis -> tika -> gotenberg -> webserver),
+   anschliessend multi-check 60s.
+6. **Pflichtflag**: `--allow-paperless` zusaetzlich zu `--execute
+   --yes-i-am-sure`. Ohne `--allow-paperless` Abbruch exit 2.
 
-Diese Punkte sind nicht Teil von Phase B. Paperless-Execute ist daher
-weiterhin via Allow-Liste blockiert und braucht `--allow-paperless`
-zusaetzlich, wenn die Sonderlogik spaeter ergaenzt ist.
+### Restore (paperless)
+
+Die App nutzt Bind-Mounts auf `data/postgres`, `data/redis`,
+`data/paperless`. Im Cutover bleiben Volumes erhalten. Bei DB-
+Korruption nach Cutover:
+
+1. App-Compose stoppen: `just app-down paperless`.
+2. Restic-Snapshot zurueckspielen oder Backup-Tarball entpacken.
+3. `backups/<TS>/paperless-postgres.sql` einspielen.
+4. App-Compose wieder starten: `just app-up paperless`.
+
+### convertX, uptime-kuma, dozzle (Phasen D, E, F)
+
+| App | Phase | Sperre |
+|---|---|---|
+| convertx | D | nicht in EXECUTE_ALLOWED_APPS |
+| uptime-kuma | E | nicht in EXECUTE_ALLOWED_APPS |
+| dozzle | F | nicht in EXECUTE_ALLOWED_APPS (bewusst zuletzt) |
+
+Dozzle bleibt explizit als letzter Schritt, damit waehrend frueherer
+Migrations-Schritte das Container-Log-UI noch aus Root-Compose
+erreichbar ist.
 
 ## Sonderfall Authentik
 
