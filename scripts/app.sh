@@ -81,12 +81,39 @@ cmd_status()  {
   eval "$(compose_for "$1") ps"
 }
 
+registry_health_path() {
+  # Liest 'health:'-Pfad fuer eine App-ID aus config/apps.yml. Leer wenn nicht gesetzt.
+  local app="$1"
+  [[ -f "$REGISTRY" ]] || return 0
+  python3 - "$app" <<'PY' 2>/dev/null || true
+import re, sys, pathlib
+target = sys.argv[1]
+text = pathlib.Path("config/apps.yml").read_text()
+current = None
+for line in text.splitlines():
+    m = re.match(r"\s+-\s+id:\s*(\S+)", line)
+    if m:
+        current = m.group(1)
+        continue
+    if current == target:
+        m = re.match(r"\s+health:\s*(.+)", line)
+        if m:
+            print(m.group(1).strip())
+            break
+PY
+}
+
 cmd_health()  {
   require_app "$1"
-  if [[ -x "$APPS_DIR/$1/healthcheck.sh" ]]; then
+  local script
+  script="$(registry_health_path "$1")"
+  if [[ -n "$script" && -x "$script" ]]; then
+    "$script"
+  elif [[ -x "$APPS_DIR/$1/healthcheck.sh" ]]; then
+    # Fallback fuer Apps ohne Registry-Eintrag.
     "$APPS_DIR/$1/healthcheck.sh"
   else
-    echo "WARN: $APPS_DIR/$1/healthcheck.sh nicht ausfuehrbar." >&2
+    echo "WARN: kein ausfuehrbares healthcheck-Script gefunden (Registry: '${script:-leer}', Fallback: $APPS_DIR/$1/healthcheck.sh)." >&2
     return 1
   fi
 }

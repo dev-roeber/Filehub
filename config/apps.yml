@@ -25,7 +25,7 @@ apps:
     compose: compose.paperless.yml
     port: 8000
     internal_url: http://filehub-paperless-webserver:8000
-    health: scripts/health/paperless.sh
+    health: apps/paperless/healthcheck.sh
     backup_include: apps/paperless/backup.include
     authentik_optional: true
     default_enabled: true
@@ -37,7 +37,7 @@ apps:
     compose: compose.convertx.yml
     port: 3000
     internal_url: http://filehub-convertx:3000
-    health: scripts/health/convertx.sh
+    health: apps/convertx/healthcheck.sh
     backup_include: apps/convertx/backup.include
     authentik_optional: true
     default_enabled: true
@@ -49,7 +49,7 @@ apps:
     compose: compose.extensions.yml
     port: 3004
     internal_url: http://filehub-stirling-pdf:8080
-    health: scripts/health/stirling-pdf.sh
+    health: apps/stirling-pdf/healthcheck.sh
     backup_include: apps/stirling-pdf/backup.include
     authentik_optional: true
     default_enabled: true
@@ -61,7 +61,7 @@ apps:
     compose: compose.extensions.yml
     port: 3003
     internal_url: http://filehub-filebrowser:80
-    health: scripts/health/filebrowser.sh
+    health: apps/filebrowser/healthcheck.sh
     backup_include: apps/filebrowser/backup.include
     authentik_optional: true
     default_enabled: true
@@ -73,7 +73,7 @@ apps:
     compose: compose.observability.yml
     port: 3001
     internal_url: http://filehub-homepage:3000
-    health: scripts/health/homepage.sh
+    health: apps/homepage/healthcheck.sh
     backup_include: apps/homepage/backup.include
     authentik_optional: true
     default_enabled: true
@@ -85,7 +85,7 @@ apps:
     compose: compose.observability.yml
     port: 3002
     internal_url: http://filehub-uptime-kuma:3001
-    health: scripts/health/uptime-kuma.sh
+    health: apps/uptime-kuma/healthcheck.sh
     backup_include: apps/uptime-kuma/backup.include
     authentik_optional: true
     default_enabled: true
@@ -97,7 +97,7 @@ apps:
     compose: compose.observability.yml
     port: 9999
     internal_url: http://filehub-dozzle:8080
-    health: scripts/health/dozzle.sh
+    health: apps/dozzle/healthcheck.sh
     backup_include: apps/dozzle/backup.include
     authentik_optional: true
     default_enabled: true
