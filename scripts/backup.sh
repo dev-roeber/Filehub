@@ -19,6 +19,13 @@ fi
 # shellcheck disable=SC1091
 set -a; source .env; set +a
 
+# Authentik-DB-Defaults (kompatibel zu compose.auth.yml/infra/authentik). Ueberschreibbar via .env.
+: "${AUTHENTIK_DB_HOST:=filehub-authentik-db}"
+: "${AUTHENTIK_DB_PORT:=5432}"
+: "${AUTHENTIK_DB_USER:=authentik}"
+: "${AUTHENTIK_DB_NAME:=authentik}"
+: "${AUTHENTIK_REDIS_CONTAINER:=filehub-authentik-redis}"
+
 timestamp="$(date +%Y%m%d-%H%M%S)"
 backup_dir="backups/${timestamp}"
 mkdir -p "$backup_dir"
@@ -33,9 +40,14 @@ echo "Erstelle lokales Backup unter $backup_dir"
 
 backup_app_module() {
   local app="$1"
-  local include="apps/$app/backup.include"
-  if [[ ! -f "$include" ]]; then
-    echo "ERROR: $include fehlt." >&2
+  local include
+  # Apps liegen unter apps/<id>/, Infra-Module (z. B. authentik) unter infra/<id>/.
+  if [[ -f "apps/$app/backup.include" ]]; then
+    include="apps/$app/backup.include"
+  elif [[ -f "infra/$app/backup.include" ]]; then
+    include="infra/$app/backup.include"
+  else
+    echo "ERROR: weder apps/$app/backup.include noch infra/$app/backup.include vorhanden." >&2
     return 1
   fi
   echo "App-Modus: sichere nur '$app' (aus $include)."
@@ -50,15 +62,15 @@ backup_app_module() {
       fi
       ;;
     authentik)
-      if docker inspect filehub-authentik-db >/dev/null 2>&1; then
-        docker exec filehub-authentik-db pg_dump -U authentik authentik \
+      if docker inspect "$AUTHENTIK_DB_HOST" >/dev/null 2>&1; then
+        docker exec "$AUTHENTIK_DB_HOST" pg_dump -U "$AUTHENTIK_DB_USER" "$AUTHENTIK_DB_NAME" \
           > "$backup_dir/authentik-postgres.sql" || \
           { echo "WARN: authentik pg_dump fehlgeschlagen."; rm -f "$backup_dir/authentik-postgres.sql"; }
       fi
-      if docker inspect filehub-authentik-redis >/dev/null 2>&1; then
-        docker exec filehub-authentik-redis redis-cli BGSAVE >/dev/null 2>&1 || true
+      if docker inspect "$AUTHENTIK_REDIS_CONTAINER" >/dev/null 2>&1; then
+        docker exec "$AUTHENTIK_REDIS_CONTAINER" redis-cli BGSAVE >/dev/null 2>&1 || true
         sleep 2
-        docker exec filehub-authentik-redis cat /data/dump.rdb \
+        docker exec "$AUTHENTIK_REDIS_CONTAINER" cat /data/dump.rdb \
           > "$backup_dir/authentik-redis-dump.rdb" 2>/dev/null || \
           { echo "WARN: authentik redis dump fehlgeschlagen."; rm -f "$backup_dir/authentik-redis-dump.rdb"; }
       fi
@@ -91,30 +103,30 @@ else
   echo "WARN: Paperless DB-Container nicht gefunden. Postgres-Dump wird übersprungen."
 fi
 
-if docker inspect filehub-authentik-db >/dev/null 2>&1; then
-  echo "Erzeuge Authentik Postgres-Dump."
-  if ! docker exec filehub-authentik-db pg_dump -U authentik authentik > "$backup_dir/authentik-postgres.sql"; then
+if docker inspect "$AUTHENTIK_DB_HOST" >/dev/null 2>&1; then
+  echo "Erzeuge Authentik Postgres-Dump ($AUTHENTIK_DB_USER@$AUTHENTIK_DB_HOST/$AUTHENTIK_DB_NAME)."
+  if ! docker exec "$AUTHENTIK_DB_HOST" pg_dump -U "$AUTHENTIK_DB_USER" "$AUTHENTIK_DB_NAME" > "$backup_dir/authentik-postgres.sql"; then
     echo "WARN: Authentik pg_dump fehlgeschlagen. Backup-Lauf fuehrt weiter, Authentik-DB fehlt im Paket."
     rm -f "$backup_dir/authentik-postgres.sql"
   fi
 else
-  echo "WARN: Authentik DB-Container nicht gefunden. Postgres-Dump wird übersprungen."
+  echo "WARN: Authentik DB-Container '$AUTHENTIK_DB_HOST' nicht gefunden. Postgres-Dump wird übersprungen."
 fi
 
-if docker inspect filehub-authentik-redis >/dev/null 2>&1; then
+if docker inspect "$AUTHENTIK_REDIS_CONTAINER" >/dev/null 2>&1; then
   echo "Loese Authentik Redis BGSAVE aus und kopiere dump.rdb (konsistenter Snapshot)."
-  old_lastsave="$(docker exec filehub-authentik-redis redis-cli LASTSAVE 2>/dev/null || echo 0)"
-  if docker exec filehub-authentik-redis redis-cli BGSAVE >/dev/null 2>&1; then
+  old_lastsave="$(docker exec "$AUTHENTIK_REDIS_CONTAINER" redis-cli LASTSAVE 2>/dev/null || echo 0)"
+  if docker exec "$AUTHENTIK_REDIS_CONTAINER" redis-cli BGSAVE >/dev/null 2>&1; then
     # Auf BGSAVE-Abschluss warten (LASTSAVE muss sich erhoehen; max 30s).
     for _ in $(seq 1 30); do
-      new_lastsave="$(docker exec filehub-authentik-redis redis-cli LASTSAVE 2>/dev/null || echo 0)"
+      new_lastsave="$(docker exec "$AUTHENTIK_REDIS_CONTAINER" redis-cli LASTSAVE 2>/dev/null || echo 0)"
       if [[ "$new_lastsave" -gt "$old_lastsave" ]]; then
         break
       fi
       sleep 1
     done
     # dump.rdb gehoert dem Container-User (0600) - via docker exec lesen.
-    if docker exec filehub-authentik-redis cat /data/dump.rdb > "$backup_dir/authentik-redis-dump.rdb" 2>/dev/null; then
+    if docker exec "$AUTHENTIK_REDIS_CONTAINER" cat /data/dump.rdb > "$backup_dir/authentik-redis-dump.rdb" 2>/dev/null; then
       chmod 600 "$backup_dir/authentik-redis-dump.rdb"
     else
       echo "WARN: Konnte authentik-redis dump.rdb nicht aus dem Container kopieren."
