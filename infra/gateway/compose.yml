@@ -1,0 +1,46 @@
+# Filehub Gateway (Caddy) - Infra-Modul.
+#
+# Spiegelt den filehub-gateway-Service aus compose.auth.yml als
+# eigenstaendiges Modul. Authentik bleibt separat (infra/authentik/),
+# es gibt KEINE Pflichtabhaengigkeit dieses Moduls auf Authentik.
+#
+# Cutover-Hinweis: nicht parallel zu compose.auth.yml starten -
+# beide setzen denselben container_name=filehub-gateway.
+
+name: filehub
+
+services:
+  filehub-gateway:
+    image: caddy:2.8-alpine
+    container_name: filehub-gateway
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FILEHUB_GATEWAY_PORT:-3080}:8080"
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+    volumes:
+      - ../../config/caddy/filehub-gateway.Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../../data/caddy-gateway/data:/data
+      - ../../data/caddy-gateway/config:/config
+    networks:
+      - filehub_net
+    # depends_on fuer authentik-server bewusst entfernt: das Infra-Modul
+    # darf ohne laufende Authentik starten. Forward-Auth schlaegt dann fehl,
+    # aber der Gateway-Health-Endpoint bleibt erreichbar. Wenn Authentik
+    # erforderlich ist, muss "just auth-up" davor laufen.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/_health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  filehub_net:
+    name: filehub_net
+    external: true
