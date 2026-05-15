@@ -163,6 +163,12 @@ migrate-plan app:
 migrate-rollback-plan app:
     ./scripts/migrate-app.sh {{app}} --rollback-plan
 
+backup-age app:
+    ./scripts/backup-age.sh {{app}}
+
+migrate-execute-homepage:
+    ./scripts/migrate-app.sh homepage --execute --yes-i-am-sure
+
 audit-report-notify:
     ./scripts/audit-report.sh --notify
 
