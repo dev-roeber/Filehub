@@ -226,6 +226,43 @@ Validierung nach Cutover:
 Stand: homepage migriert (source=app), 6 Apps bleiben source=root.
 Root-Compose-Datei `compose.observability.yml` bleibt als Rollback-Reserve im Repo.
 
+### Live-Cutover filebrowser (2026-05-15)
+
+Ausgefuehrt: `just migrate-execute-filebrowser`, exit 0, **kein Rollback** noetig.
+
+Ablauf-Eckdaten:
+- Reihenfolge-Pruefung: homepage source=app OK.
+- Preflight: 10 von 10 OK.
+- Backup-Artefakt: `backups/20260515-122438/filebrowser-app.tar.gz`.
+- Stop+rm filehub-filebrowser aus `compose.extensions.yml` -- Volume blieb erhalten.
+- App-Compose-Start: 1 Container erstellt + gestartet.
+- Healthcheck-Loop: bestanden bei Versuch 2 (~10s).
+- Post-Audit: 25 OK, 11 INFO, 1 WARN (Authentik), 0 FAIL.
+
+Validierung nach Cutover:
+| Check | Ergebnis |
+|---|---|
+| `just app-health filebrowser` | state=healthy, http=200 |
+| HTTP-Probe 127.0.0.1:3003/ | 200 |
+| `just migration-status` (filebrowser) | source=app, run=yes, health=healthy |
+| `just apps-status` | alle 7 Apps healthy |
+| `just runtime-audit` | 0 FAIL |
+| `just backup-age filebrowser` | OK 0h 0min |
+| Andere Apps source | bleiben source=root (paperless, convertx, stirling-pdf, uptime-kuma, dozzle) |
+
+Stand: homepage + filebrowser migriert (source=app), 5 Apps source=root.
+Root-Compose-Datei `compose.extensions.yml` bleibt als Rollback-Reserve im Repo.
+
+### Migrationsreihenfolge im Code
+
+`scripts/migrate-app.sh` haelt `MIGRATION_ORDER`:
+```
+homepage filebrowser stirling-pdf paperless convertx uptime-kuma dozzle
+```
+Vor `--execute` werden alle Vorgaenger gegen `migration-status --json`
+gepuneft (`source=app` erforderlich). `--override-order` Notfall-Flag
+(nicht fuer paperless). Allow-Liste aktuell: `homepage, filebrowser`.
+
 ## Keine destruktiven Aenderungen
 
 - Keine Container neu gestartet, kein `docker compose down`.
