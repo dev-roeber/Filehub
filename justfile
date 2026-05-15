@@ -257,7 +257,16 @@ auth-down:
     docker compose --env-file .env -f infra/authentik/compose.yml stop
     docker compose --env-file .env -f infra/authentik/compose.yml rm -f
 
+auth-restart:
+    docker compose --env-file .env -f infra/authentik/compose.yml restart
+
+auth-logs:
+    docker compose --env-file .env -f infra/authentik/compose.yml logs -f --tail=200
+
 # --- Gateway (Caddy) ---
+# Konvention: <komponente>-<aktion>. Bestehende up-auth/down-auth/logs-auth/
+# restart-auth-Targets weiter oben bleiben als Aliase erhalten und arbeiten
+# zusaetzlich Authentik+Gateway gemeinsam ueber compose.auth.yml.
 
 gateway-up:
     docker compose --env-file .env -f compose.auth.yml up -d filehub-gateway
@@ -265,6 +274,17 @@ gateway-up:
 gateway-down:
     docker compose --env-file .env -f compose.auth.yml stop filehub-gateway
     docker compose --env-file .env -f compose.auth.yml rm -f filehub-gateway
+
+gateway-restart:
+    docker compose --env-file .env -f compose.auth.yml restart filehub-gateway
+
+gateway-logs:
+    docker compose --env-file .env -f compose.auth.yml logs -f --tail=200 filehub-gateway
+
+gateway-reload:
+    # Caddy reload via admin API ist deaktiviert (admin off); Container-Restart
+    # als einziger zuverlaessiger Weg.
+    docker restart filehub-gateway
 
 # --- Modulares Backup ---
 
