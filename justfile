@@ -303,6 +303,12 @@ backup-all:
 homepage-generate:
     ./scripts/homepage-from-registry.py
 
+homepage-apply:
+    ./scripts/homepage-apply.sh
+
+homepage-apply-restart:
+    ./scripts/homepage-apply.sh --restart
+
 # --- Caddy Snippet Helper ---
 
 caddy-enable app:

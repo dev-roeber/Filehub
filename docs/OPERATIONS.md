@@ -112,10 +112,23 @@ gibt Exit-Code 0 zurueck, wenn die App gesund ist.
 
 `just homepage-generate` liest `config/apps.yml` und erzeugt eine
 gethomepage-kompatible Datei `config/homepage/services.generated.yaml`.
+Das Script ueberschreibt **nicht** die aktive `services.yaml`.
 
-- Das Script ueberschreibt **nicht** die aktive `services.yaml`.
-- Aktivierung manuell: `diff config/homepage/services.yaml config/homepage/services.generated.yaml`,
-  dann bewusst per `mv` / `cp` ueberschreiben und Homepage neu laden.
-- Quelle der Wahrheit fuer Ports, Container und Beschreibungen ist die Registry
-  `config/apps.yml` (Felder `port`, `internal_url`, `description`, `category`,
-  `default_enabled`).
+`just homepage-apply` uebernimmt `services.generated.yaml` -> `services.yaml`
+mit folgenden Garantien:
+
+- Existenz-Check auf `services.generated.yaml` (sonst exit 2).
+- YAML-Validierung (pyyaml falls verfuegbar, sonst grep-Plausibilitaet).
+- Backup der aktuellen `services.yaml` nach
+  `config/homepage/services.yaml.bak.<YYYYMMDD-HHMMSS>` (cp).
+- Diff-Zusammenfassung (erste 40 Zeilen) wird stdout ausgegeben.
+- Atomares Schreiben via tmp + mv. Keine interaktive Nachfrage.
+- Exit-Codes: 0 OK, 2 generated fehlt, 3 Restart-Fehler, 4 Validate-Fehler.
+
+`just homepage-apply-restart` ist identisch, fuehrt anschliessend
+`docker restart filehub-homepage` aus. Bei Restart-Fehler: WARN, exit 3,
+**ohne** Rollback der Datei (Backup bleibt vorhanden).
+
+Quelle der Wahrheit fuer Ports, Container und Beschreibungen ist die Registry
+`config/apps.yml` (Felder `port`, `internal_url`, `description`, `category`,
+`default_enabled`).
