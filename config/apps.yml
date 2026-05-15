@@ -1,0 +1,123 @@
+# Filehub App-Registry
+#
+# Maschinenlesbares Verzeichnis aller von Filehub orchestrierten Anwendungen.
+# Jede App bleibt eigenstaendig (eigene compose-Datei, eigene Volumes, eigenes
+# Backup, eigener Healthcheck). Diese Registry dient als Single Source of Truth
+# fuer Justfile-Helfer, Homepage-Generierung, Backup-Aggregation und Audit.
+#
+# Felder pro Eintrag:
+#   id            kebab-case, identisch mit Verzeichnisname unter apps/
+#   name          Anzeigename
+#   category      productivity | media | observability | utility
+#   compose       Pfad zur compose-Datei (relativ zum Repo-Root)
+#   port          lokaler Host-Port (127.0.0.1)
+#   internal_url  interne URL fuer Healthcheck/Caddy upstream
+#   health        URL oder Pfad zu healthcheck.sh
+#   backup_include Pfad zur backup.include-Datei
+#   authentik_optional  true|false  ob die App eine Authentik-geschuetzte Variante besitzt
+#   default_enabled true|false  ob die App per Default in just up-core startet
+#   description   Einzeiler
+
+apps:
+  - id: paperless
+    name: Paperless-ngx
+    category: productivity
+    compose: compose.paperless.yml
+    port: 8000
+    internal_url: http://filehub-paperless-webserver:8000
+    health: scripts/health/paperless.sh
+    backup_include: apps/paperless/backup.include
+    authentik_optional: true
+    default_enabled: true
+    description: Dokumentenmanagement mit OCR
+
+  - id: convertx
+    name: ConvertX
+    category: utility
+    compose: compose.convertx.yml
+    port: 3000
+    internal_url: http://filehub-convertx:3000
+    health: scripts/health/convertx.sh
+    backup_include: apps/convertx/backup.include
+    authentik_optional: true
+    default_enabled: true
+    description: Format-Konvertierung (Dateien)
+
+  - id: stirling-pdf
+    name: Stirling PDF
+    category: utility
+    compose: compose.extensions.yml
+    port: 3004
+    internal_url: http://filehub-stirling-pdf:8080
+    health: scripts/health/stirling-pdf.sh
+    backup_include: apps/stirling-pdf/backup.include
+    authentik_optional: true
+    default_enabled: true
+    description: PDF-Toolkit
+
+  - id: filebrowser
+    name: Filebrowser
+    category: utility
+    compose: compose.extensions.yml
+    port: 3003
+    internal_url: http://filehub-filebrowser:80
+    health: scripts/health/filebrowser.sh
+    backup_include: apps/filebrowser/backup.include
+    authentik_optional: true
+    default_enabled: true
+    description: Web-Dateibrowser
+
+  - id: homepage
+    name: Homepage
+    category: observability
+    compose: compose.observability.yml
+    port: 3001
+    internal_url: http://filehub-homepage:3000
+    health: scripts/health/homepage.sh
+    backup_include: apps/homepage/backup.include
+    authentik_optional: true
+    default_enabled: true
+    description: Dashboard (kein Pflichteinstieg)
+
+  - id: uptime-kuma
+    name: Uptime Kuma
+    category: observability
+    compose: compose.observability.yml
+    port: 3002
+    internal_url: http://filehub-uptime-kuma:3001
+    health: scripts/health/uptime-kuma.sh
+    backup_include: apps/uptime-kuma/backup.include
+    authentik_optional: true
+    default_enabled: true
+    description: Uptime-Monitoring
+
+  - id: dozzle
+    name: Dozzle
+    category: observability
+    compose: compose.observability.yml
+    port: 9999
+    internal_url: http://filehub-dozzle:8080
+    health: scripts/health/dozzle.sh
+    backup_include: apps/dozzle/backup.include
+    authentik_optional: true
+    default_enabled: true
+    description: Docker-Log-Viewer
+
+infra:
+  - id: gateway
+    name: Filehub Gateway (Caddy)
+    compose: compose.auth.yml
+    port: 3080
+    description: Reverse-Proxy fuer optionale SSO-Integration
+
+  - id: authentik
+    name: Authentik
+    compose: compose.auth.yml
+    port: 9000
+    default_enabled: false
+    description: Identity Provider - optional, default deaktiviert
+
+  - id: backup
+    name: Restic Backup
+    compose: compose.backup.yml
+    description: Backup-Dispatcher (systemd-Timer)
