@@ -1,0 +1,146 @@
+# Authentik - optionales Infrastrukturmodul.
+# Default-Aktivierungsstatus: AUTHENTIK_ENABLED=false (siehe docs/AUTHENTIK_OPTIONAL.md).
+# Aufruf nur wenn aktiviert:
+#   docker compose --env-file ../../.env -f compose.yml up -d
+# Apps muessen NICHT von Authentik abhaengen - Authentik darf keine harte
+# Pflicht-Dependency fuer App-Start, Backup oder Health sein.
+
+name: filehub
+
+networks:
+  authentik_net:
+    name: authentik_net
+    driver: bridge
+  filehub_net:
+    name: filehub_net
+    external: true
+
+services:
+  authentik-postgres:
+    image: postgres:16-alpine
+    container_name: filehub-authentik-db
+    restart: unless-stopped
+    env_file:
+      - ../../.secrets/authentik.env
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      POSTGRES_USER: authentik
+      POSTGRES_DB: authentik
+    volumes:
+      - ../../data/authentik/postgres:/var/lib/postgresql/data
+    networks:
+      - authentik_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authentik"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  authentik-redis:
+    image: redis:7-alpine
+    container_name: filehub-authentik-redis
+    restart: unless-stopped
+    command: ["--save", "60", "1", "--loglevel", "warning"]
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+    volumes:
+      - ../../data/authentik/redis:/data
+    networks:
+      - authentik_net
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2024.10
+    container_name: filehub-authentik-server
+    restart: unless-stopped
+    command: server
+    env_file:
+      - ../../.secrets/authentik.env
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      AUTHENTIK_REDIS__HOST: filehub-authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: filehub-authentik-db
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_LOG_LEVEL: info
+      AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+    ports:
+      - "127.0.0.1:${AUTHENTIK_PORT:-9000}:9000"
+    volumes:
+      - ../../data/authentik/media:/media
+      - ../../data/authentik/custom-templates:/templates
+    networks:
+      - authentik_net
+      - filehub_net
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "ak", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2024.10
+    container_name: filehub-authentik-worker
+    restart: unless-stopped
+    command: worker
+    env_file:
+      - ../../.secrets/authentik.env
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      AUTHENTIK_REDIS__HOST: filehub-authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: filehub-authentik-db
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_LOG_LEVEL: info
+      AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+    volumes:
+      - ../../data/authentik/media:/media
+      - ../../data/authentik/custom-templates:/templates
+      - ../../data/authentik/certs:/certs
+    networks:
+      - authentik_net
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

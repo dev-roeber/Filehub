@@ -1,0 +1,10 @@
+# Caddy-Snippet fuer Authentik-Outpost-Forwarding (DEAKTIVIERT).
+# Aktivierung: Datei zu .caddy umbenennen und im Gateway-Caddyfile einbinden.
+#
+# Der Outpost-Pfad MUSS ungefiltert zum Authentik-Server, damit Login-/Callback-
+# Flows funktionieren. Diese Datei stellt nur das Snippet bereit - das Gateway-
+# Caddyfile bleibt der Eintrittspunkt.
+
+handle /outpost.goauthentik.io/* {
+	reverse_proxy filehub-authentik-server:9000
+}

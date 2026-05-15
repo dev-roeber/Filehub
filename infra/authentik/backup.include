@@ -1,0 +1,13 @@
+# Authentik Backup-Include.
+# Wird von scripts/backup.sh gelesen, wenn Authentik aktiv ist oder explizit
+# per `just backup-app authentik` angefordert wird.
+#
+# Format: ein Pfad pro Zeile (relativ zum Repo-Root). Kommentare mit '#'.
+# DB- und Redis-Dumps werden zusaetzlich dynamisch via pg_dump/BGSAVE erzeugt
+# und in den Backup-Ordner gelegt (siehe scripts/backup.sh).
+
+data/authentik/media
+data/authentik/custom-templates
+data/authentik/certs
+infra/authentik/compose.yml
+infra/authentik/.env.example
