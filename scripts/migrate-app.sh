@@ -602,9 +602,9 @@ fi
 # ---------------------------------------------------------------------------
 if [[ "$MODE" == "--execute" ]]; then
 
-  # Allow-Liste: homepage (Phase A), filebrowser (Phase B), stirling-pdf (Phase C-1).
-  # paperless (Phase C-2) ist NUR ueber --allow-paperless erreichbar.
-  EXECUTE_ALLOWED_APPS=("homepage" "filebrowser" "stirling-pdf")
+  # Allow-Liste: homepage (A), filebrowser (B), stirling-pdf (C-1), convertx (D).
+  # paperless (C-2) ist NUR ueber --allow-paperless erreichbar.
+  EXECUTE_ALLOWED_APPS=("homepage" "filebrowser" "stirling-pdf" "convertx")
   # Apps, die zusaetzlich --allow-paperless erfordern (Multi-Container-Sonderfall)
   if [[ "$APP" == "paperless" && $ALLOW_PAPERLESS -eq 1 ]]; then
     EXECUTE_ALLOWED_APPS+=("paperless")
