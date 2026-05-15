@@ -329,6 +329,29 @@ Validierung nach Cutover:
 
 Stand: homepage + filebrowser + stirling-pdf + paperless + convertx migriert (source=app), 2 Apps source=root.
 
+### Live-Cutover uptime-kuma (2026-05-15)
+
+Ausgefuehrt: `just migrate-execute-uptime-kuma`, exit 0, **kein Rollback** noetig.
+
+Eckdaten:
+- Reihenfolge-Pruefung: 5 Vorgaenger source=app OK.
+- Preflight 10/10 OK.
+- Backup: `backups/20260515-132856/uptime-kuma-app.tar.gz`.
+- Stop+rm `filehub-uptime-kuma` aus `compose.observability.yml` (Volume erhalten).
+- Healthcheck-Loop: uptime-kuma-Default 120s/5s, bestanden bei Versuch 2 (~10s).
+- Post-Audit: 0 FAIL.
+
+Validierung nach Cutover:
+| Check | Ergebnis |
+|---|---|
+| `just app-health uptime-kuma` | state=healthy, http=302 |
+| HTTP-Probe 127.0.0.1:3002/ | 302 (Login-Redirect) |
+| `just migration-status` (uptime-kuma) | source=app, healthy |
+| `just runtime-audit` | 0 FAIL |
+| `just backup-age uptime-kuma` | OK 0h 0min |
+
+Stand: 6 Apps migriert (source=app), nur dozzle source=root. Authentik separate Sonderphase.
+
 ### Phase C abgeschlossen
 
 | App | Status | Healthcheck-Loop |
