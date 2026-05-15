@@ -36,3 +36,7 @@
         href: http://127.0.0.1:9999
         description: Docker-Log-Viewer
         container: filehub-dozzle
+    - Grafana:
+        href: http://127.0.0.1:3005
+        description: Metrics-Dashboards (OSS)
+        container: filehub-grafana

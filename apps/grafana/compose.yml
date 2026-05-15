@@ -14,6 +14,9 @@ services:
     image: grafana/grafana:11.4.0
     container_name: filehub-grafana
     restart: unless-stopped
+    # Lauf-User: Host-PUID/PGID, damit Bind-Mount ../../data/grafana
+    # ohne chown auf UID 472 (Grafana-Default) zugreifbar ist.
+    user: "${PUID:-1000}:${PGID:-1000}"
     ports:
       - "127.0.0.1:${GRAFANA_PORT:-3005}:3000"
     environment:
