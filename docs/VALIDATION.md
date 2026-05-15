@@ -200,6 +200,32 @@ Execute fuehrt aus:
 
 Exit-Codes: 0 OK, 2 Preflight/Migration-Fail, 3 Rollback-Fail.
 
+### Live-Cutover homepage (2026-05-15)
+
+Ausgefuehrt: `just migrate-execute-homepage`, exit 0, **kein Rollback** noetig.
+
+Ablauf-Eckdaten:
+- Preflight: 10 von 10 OK.
+- Backup-Artefakt: `backups/20260515-121407/homepage-app.tar.gz`.
+- Stop+rm filehub-homepage aus `compose.observability.yml` -- Volume blieb erhalten.
+- App-Compose-Start: 1 Container erstellt + gestartet.
+- Healthcheck-Loop: bestanden bei Versuch 2 (~10s).
+- Post-Audit: 25 OK, 11 INFO, 1 WARN (Authentik), 0 FAIL.
+
+Validierung nach Cutover:
+| Check | Ergebnis |
+|---|---|
+| `just app-health homepage` | state=healthy, http=200 |
+| HTTP-Probe 127.0.0.1:3001/ | 200 |
+| `just migration-status` (homepage) | source=app, run=yes, health=healthy |
+| `just apps-status` | alle 7 Apps healthy |
+| `just runtime-audit` | 0 FAIL |
+| `just backup-age homepage` | OK 0h 0min |
+| Andere Apps source | bleiben source=root (paperless, convertx, stirling-pdf, filebrowser, uptime-kuma, dozzle) |
+
+Stand: homepage migriert (source=app), 6 Apps bleiben source=root.
+Root-Compose-Datei `compose.observability.yml` bleibt als Rollback-Reserve im Repo.
+
 ## Keine destruktiven Aenderungen
 
 - Keine Container neu gestartet, kein `docker compose down`.
