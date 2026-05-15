@@ -43,6 +43,8 @@ fi
 APP=""
 MODE=""
 CONFIRM=0
+OVERRIDE_ORDER=0
+ALLOW_PAPERLESS=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run|--print-commands|--rollback-plan|--execute)
@@ -54,6 +56,12 @@ for arg in "$@"; do
       ;;
     --yes-i-am-sure)
       CONFIRM=1
+      ;;
+    --override-order)
+      OVERRIDE_ORDER=1
+      ;;
+    --allow-paperless)
+      ALLOW_PAPERLESS=1
       ;;
     -h|--help)
       usage
@@ -73,6 +81,46 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+# ---------------------------------------------------------------------------
+# Verbindliche Migrationsreihenfolge (User-Defined)
+# ---------------------------------------------------------------------------
+# Reihenfolge fuer Live-Cutover. authentik bleibt separate Phase und ist
+# NICHT teil dieser Liste.
+MIGRATION_ORDER=(homepage filebrowser stirling-pdf paperless convertx uptime-kuma dozzle)
+
+order_index_of() {
+  local needle="$1" i=0
+  for a in "${MIGRATION_ORDER[@]}"; do
+    if [[ "$a" == "$needle" ]]; then
+      echo "$i"
+      return 0
+    fi
+    i=$((i + 1))
+  done
+  return 1
+}
+
+# Liefert source=app|root|... fuer eine App via migration-status JSON
+get_source_for_app() {
+  local app="$1"
+  local json
+  json="$(scripts/migration-status.sh --json 2>/dev/null || true)"
+  [[ -z "$json" ]] && return 1
+  python3 - "$app" <<'PY' <<<"$json" 2>/dev/null
+import json, sys
+app = sys.argv[1]
+data_text = sys.stdin.read()
+try:
+    data = json.loads(data_text)
+except Exception:
+    sys.exit(1)
+for a in data.get("apps", []):
+    if a.get("app") == app:
+        print(a.get("source",""))
+        break
+PY
+}
 
 if [[ -z "$APP" ]]; then
   usage
@@ -536,29 +584,72 @@ fi
 # ---------------------------------------------------------------------------
 if [[ "$MODE" == "--execute" ]]; then
 
-  # Allow-Liste: aktuell nur homepage
+  # Allow-Liste: aktuell homepage (erledigt). Weitere Apps werden in
+  # spaeteren Phasen einzeln freigeschaltet.
   EXECUTE_ALLOWED_APPS=("homepage")
   allowed=0
   for a in "${EXECUTE_ALLOWED_APPS[@]}"; do
     [[ "$a" == "$APP" ]] && allowed=1
   done
 
+  # Paperless: gesperrt, ausser explizit --allow-paperless gesetzt
+  # (Sonderpfad mit Wartungsfenster, derzeit nicht freigegeben).
   if [[ "$APP" == "paperless" ]]; then
-    echo "FAIL paperless ist gesperrt fuer --execute (DB-Helper, separate Phase)" >&2
-    exit 2
+    if [[ $ALLOW_PAPERLESS -ne 1 ]]; then
+      echo "FAIL paperless ist gesperrt fuer --execute (DB-Helper, separate Phase)" >&2
+      echo "     Sonderfreigabe nur ueber --allow-paperless + --yes-i-am-sure," >&2
+      echo "     und nur nach Vorbereitung des Wartungsfensters." >&2
+      exit 2
+    fi
+    # Wenn --allow-paperless gesetzt, faellt die Allow-Liste durch (aktuell
+    # nicht freigegeben), siehe naechste Pruefung.
   fi
   # authentik wurde oben schon mit exit 2 abgefangen.
 
   if [[ $allowed -eq 0 ]]; then
-    echo "FAIL execute currently allowed only for homepage (angefragt: $APP)" >&2
+    allowed_list="$(IFS=,; echo "${EXECUTE_ALLOWED_APPS[*]}")"
+    echo "FAIL execute currently allowed only for: $allowed_list (angefragt: $APP)" >&2
     exit 2
   fi
 
   if [[ $CONFIRM -ne 1 ]]; then
     echo "ERROR: --execute braucht zusaetzlich --yes-i-am-sure" >&2
-    echo "       Beispiel: scripts/migrate-app.sh homepage --execute --yes-i-am-sure" >&2
+    echo "       Beispiel: scripts/migrate-app.sh $APP --execute --yes-i-am-sure" >&2
     exit 1
   fi
+
+  # ---------------- Reihenfolge-Pruefung ----------------
+  # Alle Vorgaenger in MIGRATION_ORDER muessen bereits source=app sein.
+  echo "-- Reihenfolge --"
+  target_idx="$(order_index_of "$APP")"
+  if [[ -z "$target_idx" ]]; then
+    echo "FAIL $APP ist nicht in MIGRATION_ORDER definiert" >&2
+    exit 2
+  fi
+  ORDER_FAIL=0
+  for ((i=0; i<target_idx; i++)); do
+    pred="${MIGRATION_ORDER[$i]}"
+    src="$(get_source_for_app "$pred" || true)"
+    if [[ "$src" == "app" ]]; then
+      echo "OK   Vorgaenger $pred source=app"
+    else
+      echo "FAIL Vorgaenger $pred source=${src:-unknown} (erwartet: app)"
+      ORDER_FAIL=1
+    fi
+  done
+  if (( ORDER_FAIL > 0 )); then
+    if [[ $OVERRIDE_ORDER -eq 1 && "$APP" != "paperless" ]]; then
+      echo "WARN --override-order gesetzt: Reihenfolge-FAIL wird ignoriert"
+    elif [[ $OVERRIDE_ORDER -eq 1 && "$APP" == "paperless" ]]; then
+      echo "FAIL --override-order ist fuer paperless NICHT erlaubt" >&2
+      exit 2
+    else
+      echo "ABORT Reihenfolge nicht erfuellt - keine Aktion ausgefuehrt" >&2
+      echo "       Erwartete Reihenfolge: ${MIGRATION_ORDER[*]}" >&2
+      exit 2
+    fi
+  fi
+  echo
 
   echo "=== migrate-app EXECUTE: $APP ==="
   echo "WARN destruktive Aktion: stop+rm Root-Container, up App-Compose"
@@ -730,19 +821,23 @@ if [[ "$MODE" == "--execute" ]]; then
   # ---------------- Healthcheck-Loop ----------------
   HEALTH_OK=0
   if [[ $APP_UP_FAIL -eq 0 ]]; then
+    HC_TIMEOUT="${MIGRATE_HEALTH_TIMEOUT_SECONDS:-60}"
+    HC_INTERVAL="${MIGRATE_HEALTH_INTERVAL_SECONDS:-5}"
+    HC_MAX_TRIES=$(( HC_TIMEOUT / HC_INTERVAL ))
+    (( HC_MAX_TRIES < 1 )) && HC_MAX_TRIES=1
     echo
-    echo "-- Healthcheck-Loop (bis 60s, alle 5s) --"
-    for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    echo "-- Healthcheck-Loop (bis ${HC_TIMEOUT}s, alle ${HC_INTERVAL}s, ${HC_MAX_TRIES} Versuche) --"
+    for ((i=1; i<=HC_MAX_TRIES; i++)); do
       if just app-health "$APP" >/dev/null 2>&1; then
         HEALTH_OK=1
         echo "OK   app-health bestanden (Versuch $i)"
         break
       fi
-      echo "INFO Versuch $i: noch nicht healthy, warte 5s"
-      sleep 5
+      echo "INFO Versuch $i/$HC_MAX_TRIES: noch nicht healthy, warte ${HC_INTERVAL}s"
+      sleep "$HC_INTERVAL"
     done
     if [[ $HEALTH_OK -ne 1 ]]; then
-      echo "FAIL app-health nicht bestanden innerhalb 60s"
+      echo "FAIL app-health nicht bestanden innerhalb ${HC_TIMEOUT}s"
     fi
   fi
 
