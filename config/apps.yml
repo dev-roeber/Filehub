@@ -103,6 +103,30 @@ apps:
     default_enabled: true
     description: Docker-Log-Viewer
 
+  - id: grafana
+    name: Grafana
+    category: observability
+    compose: apps/grafana/compose.yml
+    port: 3005
+    internal_url: http://filehub-grafana:3000
+    health: apps/grafana/healthcheck.sh
+    backup_include: apps/grafana/backup.include
+    authentik_optional: true
+    default_enabled: true
+    description: Metrics-Dashboards (OSS)
+
+  - id: whisper-asr
+    name: Whisper ASR Webservice
+    category: productivity
+    compose: apps/whisper-asr/compose.yml
+    port: 9001
+    internal_url: http://filehub-whisper-asr:9000
+    health: apps/whisper-asr/healthcheck.sh
+    backup_include: apps/whisper-asr/backup.include
+    authentik_optional: true
+    default_enabled: false
+    description: Speech-to-Text via OpenAI Whisper (CPU, hoher RAM-Bedarf)
+
 infra:
   - id: gateway
     name: Filehub Gateway (Caddy)
