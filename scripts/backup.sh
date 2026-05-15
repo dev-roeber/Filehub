@@ -27,10 +27,53 @@ chmod 700 "$backup_dir"
 echo "Erstelle lokales Backup unter $backup_dir"
 
 if docker inspect filehub-paperless-db >/dev/null 2>&1; then
-  echo "Erzeuge Postgres-Dump."
+  echo "Erzeuge Paperless Postgres-Dump."
   docker exec filehub-paperless-db pg_dump -U "$PAPERLESS_DBUSER" "$PAPERLESS_DBNAME" > "$backup_dir/paperless-postgres.sql"
 else
-  echo "WARN: DB-Container nicht gefunden. Postgres-Dump wird übersprungen."
+  echo "WARN: Paperless DB-Container nicht gefunden. Postgres-Dump wird übersprungen."
+fi
+
+if docker inspect filehub-authentik-db >/dev/null 2>&1; then
+  echo "Erzeuge Authentik Postgres-Dump."
+  if ! docker exec filehub-authentik-db pg_dump -U authentik authentik > "$backup_dir/authentik-postgres.sql"; then
+    echo "WARN: Authentik pg_dump fehlgeschlagen. Backup-Lauf fuehrt weiter, Authentik-DB fehlt im Paket."
+    rm -f "$backup_dir/authentik-postgres.sql"
+  fi
+else
+  echo "WARN: Authentik DB-Container nicht gefunden. Postgres-Dump wird übersprungen."
+fi
+
+if docker inspect filehub-authentik-redis >/dev/null 2>&1; then
+  echo "Loese Authentik Redis BGSAVE aus und kopiere dump.rdb (konsistenter Snapshot)."
+  old_lastsave="$(docker exec filehub-authentik-redis redis-cli LASTSAVE 2>/dev/null || echo 0)"
+  if docker exec filehub-authentik-redis redis-cli BGSAVE >/dev/null 2>&1; then
+    # Auf BGSAVE-Abschluss warten (LASTSAVE muss sich erhoehen; max 30s).
+    for _ in $(seq 1 30); do
+      new_lastsave="$(docker exec filehub-authentik-redis redis-cli LASTSAVE 2>/dev/null || echo 0)"
+      if [[ "$new_lastsave" -gt "$old_lastsave" ]]; then
+        break
+      fi
+      sleep 1
+    done
+    # dump.rdb gehoert dem Container-User (0600) - via docker exec lesen.
+    if docker exec filehub-authentik-redis cat /data/dump.rdb > "$backup_dir/authentik-redis-dump.rdb" 2>/dev/null; then
+      chmod 600 "$backup_dir/authentik-redis-dump.rdb"
+    else
+      echo "WARN: Konnte authentik-redis dump.rdb nicht aus dem Container kopieren."
+      rm -f "$backup_dir/authentik-redis-dump.rdb"
+    fi
+  else
+    echo "WARN: Authentik Redis BGSAVE konnte nicht ausgeloest werden."
+  fi
+fi
+
+if [[ -d data/authentik ]]; then
+  # Postgres-Datendir (700/UID 70) und redis-Dir (dump.rdb ist 0600) bewusst auslassen -
+  # Postgres wird via pg_dump, Redis als RDB-Datei via docker exec gesichert.
+  tar --warning=no-file-changed -czf "$backup_dir/authentik-data.tar.gz" \
+    data/authentik/media \
+    data/authentik/custom-templates \
+    data/authentik/certs
 fi
 
 tar --warning=no-file-changed -czf "$backup_dir/filehub-config.tar.gz" compose*.yml justfile config docs scripts .env.example README.md
@@ -74,6 +117,11 @@ if [[ -n "${RESTIC_REPOSITORY:-}" && -n "${RESTIC_PASSWORD:-}" ]]; then
   restic_paths=("$backup_dir" data/paperless data/convertx config docs scripts compose.yml compose.paperless.yml compose.convertx.yml compose.observability.yml .env.example README.md)
   [[ -d data/filebrowser ]] && restic_paths+=(data/filebrowser)
   [[ -d data/stirling ]] && restic_paths+=(data/stirling)
+  # Authentik: media/custom-templates/certs (Postgres+Redis liegen als Dumps im backup_dir).
+  [[ -d data/authentik/media ]] && restic_paths+=(data/authentik/media)
+  [[ -d data/authentik/custom-templates ]] && restic_paths+=(data/authentik/custom-templates)
+  [[ -d data/authentik/certs ]] && restic_paths+=(data/authentik/certs)
+  [[ -f compose.auth.yml ]] && restic_paths+=(compose.auth.yml)
   [[ -f compose.extensions.yml ]] && restic_paths+=(compose.extensions.yml)
   restic backup --tag filehub-full "${restic_paths[@]}"
   if [[ "${RESTIC_APPLY_RETENTION:-false}" == "true" ]]; then
