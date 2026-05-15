@@ -431,6 +431,33 @@ Eckdaten:
 
 Stand: Gateway modular, Authentik-Cutover bleibt naechster Schritt.
 
+### Authentik-Cutover live (2026-05-15)
+
+Ausgefuehrt manuell (Schritt-fuer-Schritt aus `docs/AUTHENTIK_MIGRATION_RUNBOOK.md`),
+exit 0, **kein Rollback** noetig.
+
+Eckdaten:
+- `AUTHENTIK_ENABLED=true` zu `.env` ergaenzt (`.env.example` bleibt `false`).
+- Backup: `backups/20260515-142538/authentik-postgres.sql` (2.5MB),
+  `authentik-redis-dump.rdb` (171KB), `authentik-app.tar.gz` (1.7KB).
+- Stop-Reihenfolge: worker -> server -> redis -> db.
+- rm -f alle 4.
+- `just auth-up` (liest AUTHENTIK_ENABLED=true) -> Start aus
+  `infra/authentik/compose.yml`. Reihenfolge db,redis healthy -> server,worker.
+- Healthcheck-Loop: alle 4 healthy nach ~30s.
+- Source-Pruefung: `infra/authentik/compose.yml` als config_files-Label.
+- `just gateway-bootstrap-check`: POST-BOOTSTRAP, Login-Redirect funktioniert.
+- `just auth-status`: 302 (UI erreichbar).
+- `just runtime-audit`: **0 WARN, 0 FAIL** -- Authentik-Drift verschwunden,
+  Gateway-Source jetzt OK.
+
+Bind-Mounts identisch (`./data/authentik/*` == `../../data/authentik/*`),
+Postgres-Daten ohne Restore uebernommen. Provider-Konfiguration aus
+Authentik-UI weiterhin gueltig (Login-Redirect-Flow getestet).
+
+**Stand: Alle 9 Apps + Gateway + Authentik laufen modular.**
+`compose.auth.yml` bleibt als Rollback-Reserve im Repo.
+
 ### Gateway-Modularisierung vorbereitet (2026-05-15)
 
 `infra/gateway/compose.yml` ist angelegt, aber **noch nicht aktiv**.
