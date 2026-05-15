@@ -1,7 +1,37 @@
 # Reverse-Proxy- und Auth-Plan (Phase 2)
 
-Stand: 2026-05-15. **Plan, nicht umsetzen.** Filehub bleibt aktuell
-localhost-only.
+Stand: 2026-05-15. Phase 1 (Authentik + Gateway-Caddy lokal, HTTP) ist
+umgesetzt, siehe `docs/sso-gateway.md`. Phase 2 ist Plan und wird
+nicht ohne explizite Freigabe aktiviert.
+
+## Update 2026-05-15
+
+Phase 1 ist live:
+
+- `filehub-authentik-server`, `filehub-authentik-worker`,
+  `filehub-authentik-db`, `filehub-authentik-redis` und
+  `filehub-gateway` (Caddy) laufen lokal.
+- Authentik-UI: `http://127.0.0.1:9000`.
+- Gateway: `http://127.0.0.1:3080` (HTTP, kein TLS).
+- Nur die Homepage steht hinter dem Gateway. App-Logins der Backends
+  bleiben aktiv.
+
+Phase-2-Schritte ab hier:
+
+- Subdomains pro App via `/etc/hosts` oder echter DNS
+  (`paperless.filehub.local`, `convertx.filehub.local`,
+  `filebrowser.filehub.local`, `stirling.filehub.local`,
+  `dozzle.filehub.local`, `homepage.filehub.local`).
+- TLS via interner CA (`tls internal` in Caddy) oder Tailscale-TLS.
+  Kein Let's Encrypt, solange das Setup localhost/Tailscale-only
+  bleibt.
+- OIDC-App-SSO pro App: Paperless, ConvertX, Filebrowser, Stirling,
+  Dozzle akzeptieren Authentik als IdP. Eigene App-Logins werden
+  abgeschaltet oder auf Notnagel reduziert.
+- Caddy wird alleiniger Eingang. App-Ports binden nur noch im
+  Compose-Netz, kein direktes Host-Binding mehr.
+- UFW oeffnet 80/443 erst nach Auth- und TLS-Test, oder bleibt
+  geschlossen (Tailscale-only).
 
 ## Ziel
 

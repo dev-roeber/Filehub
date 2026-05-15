@@ -4,6 +4,7 @@ compose_core := "docker compose -f compose.yml -f compose.paperless.yml -f compo
 compose_all := "docker compose -f compose.yml -f compose.paperless.yml -f compose.convertx.yml -f compose.observability.yml"
 compose_ext := "docker compose -f compose.yml -f compose.paperless.yml -f compose.convertx.yml -f compose.observability.yml -f compose.extensions.yml"
 compose_proxy := "docker compose -f compose.yml -f compose.paperless.yml -f compose.convertx.yml -f compose.observability.yml -f compose.proxy.yml --profile proxy"
+compose_auth := "docker compose -f compose.yml -f compose.paperless.yml -f compose.convertx.yml -f compose.observability.yml -f compose.extensions.yml -f compose.auth.yml"
 
 init:
     ./scripts/init.sh
@@ -172,3 +173,29 @@ setup-uptime-kuma-statuspage:
 
 setup-paperless-saved-views:
     ./scripts/setup-paperless-saved-views.sh
+
+# --- Authentik SSO Gateway (Phase 1, localhost-only) ---
+
+up-auth:
+    {{compose_auth}} up -d authentik-postgres authentik-redis authentik-server authentik-worker filehub-gateway
+
+down-auth:
+    {{compose_auth}} stop filehub-gateway authentik-server authentik-worker authentik-redis authentik-postgres
+    {{compose_auth}} rm -f filehub-gateway authentik-server authentik-worker authentik-redis authentik-postgres
+
+restart-auth:
+    {{compose_auth}} restart authentik-server authentik-worker filehub-gateway
+
+logs-auth:
+    {{compose_auth}} logs -f --tail=200 authentik-server authentik-worker filehub-gateway
+
+auth-status:
+    @{{compose_auth}} ps authentik-postgres authentik-redis authentik-server authentik-worker
+    @echo "---"
+    @curl -fsS -o /dev/null -w 'authentik-ui (http://127.0.0.1:9000): %{http_code}\n' --max-time 5 http://127.0.0.1:9000/ || true
+
+gateway-status:
+    @{{compose_auth}} ps filehub-gateway
+    @echo "---"
+    @curl -fsS -o /dev/null -w 'gateway-health (http://127.0.0.1:3080/_health): %{http_code}\n' --max-time 5 http://127.0.0.1:3080/_health || true
+    @curl -fsS -o /dev/null -w 'gateway-root  (http://127.0.0.1:3080/):         %{http_code}\n' --max-time 5 http://127.0.0.1:3080/ || true

@@ -26,6 +26,8 @@ HTTP_MONITORS = [
     ("Filehub Tika",          "http://paperless-tika:9998/"),
     ("Filehub Filebrowser",   "http://filebrowser:80/"),
     ("Filehub Stirling PDF",  "http://stirling-pdf:8080/"),
+    ("Filehub Authentik",     "http://filehub-authentik-server:9000/-/health/live/"),
+    ("Filehub Gateway",       "http://filehub-gateway:8080/_health"),
 ]
 
 TCP_MONITORS = [

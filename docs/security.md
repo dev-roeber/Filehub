@@ -89,6 +89,38 @@ Auth-Layer hat. Konsequenzen:
 - Bei Verdacht auf Leak: Topic wechseln, alle Sender/Empfaenger neu
   konfigurieren.
 
+## Authentik-SSO-Gateway (Phase 1)
+
+Stand 2026-05-15. Details: `docs/sso-gateway.md`.
+
+- Gateway-Login ist **kein** App-SSO. Paperless, ConvertX, Filebrowser
+  und Stirling behalten ihre eigenen Logins. Das Gateway-Login ist
+  eine zusaetzliche Vorbarriere, kein Ersatz.
+- Backend-Ports (3000-3004, 8000, 9999) muessen weiterhin
+  localhost-only binden. UFW erlaubt aktuell nur 22/tcp und darf in
+  Phase 1 nicht fuer 80/443 geoeffnet werden.
+- Filebrowser, Dozzle und Stirling duerfen niemals oeffentlich
+  werden, weder direkt noch ueber das Gateway, solange kein TLS und
+  kein echtes OIDC pro App produktiv ist.
+- Caddy `forward_auth` reicht nur eine Whitelist von Headern an
+  Backends durch (`X-Authentik-Username`, `X-Authentik-Email`,
+  `X-Authentik-Groups`, `X-Authentik-Uid`). Generische Header wie
+  `Remote-User` oder `X-Forwarded-User` bleiben blockiert.
+- Backends muessen Authentik-Header validieren, statt blind
+  `Remote-User` zu vertrauen. Solange das Backend ein eigenes Login
+  hat, bleibt das Backend-Login die maßgebliche Auth.
+- Authentik-Secrets liegen ausschliesslich in
+  `.secrets/authentik.env` (Mode `600`). Nicht in Compose-Dateien,
+  nicht im Repo, nicht im Backup-Default.
+- `AUTHENTIK_BOOTSTRAP_PASSWORD` wird im laufenden Betrieb **nicht
+  mehr** ausgewertet. Authentik liest die Bootstrap-Variablen nur
+  beim ersten Start, wenn noch kein Admin-User existiert. Nach
+  erfolgreichem Initial-Setup sollte das Bootstrap-Passwort rotiert
+  und der Bootstrap-Eintrag aus `.secrets/authentik.env` entfernt
+  werden, oder bewusst als Notnagel stehen bleiben.
+- Authentik-UI (Port 9000) bleibt localhost-only. Kein Public-Bind,
+  auch nicht ueber das Gateway.
+
 ## Backups
 
 Restic-Backups sind verschlüsselt, aber nur belastbar, wenn Restore regelmäßig getestet wird. Das restic-Passwort und die rclone-Konfiguration sind kritisch und dürfen nicht im Git landen.

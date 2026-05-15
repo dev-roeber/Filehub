@@ -122,6 +122,30 @@ docker compose -f compose.yml -f compose.paperless.yml -f compose.convertx.yml -
 
 Prüfe bei Problemen zuerst Port-Konflikte, freien Speicher, Container-Healthchecks und Paperless-/Postgres-Logs.
 
+## Authentik SSO Gateway (Phase 1)
+
+Authentik laeuft lokal als Identity-Provider mit einem zweiten Caddy als Forward-Auth-Gateway vor der Filehub-Homepage. HTTP only, localhost-only.
+
+Starten:
+
+```bash
+just up-auth
+```
+
+Pruefen:
+
+```bash
+just auth-status
+just gateway-status
+```
+
+URLs:
+
+- Authentik UI: `http://127.0.0.1:9000`
+- Filehub-Gateway: `http://127.0.0.1:3080`
+
+Details, Phase-2-Plan und Sicherheits-Hinweise: [docs/sso-gateway.md](docs/sso-gateway.md).
+
 ## Deployment-Pfad
 
 Das Repository liegt initial unter `/home/sebastian/Repos/Filehub`. `/opt/stacks` existierte bei der Einrichtung nicht. Ein späterer Deploy nach `/opt/stacks/filehub` kann per Kopie oder Git-Checkout erfolgen, nachdem `/opt/stacks` bewusst mit passenden Rechten angelegt wurde.

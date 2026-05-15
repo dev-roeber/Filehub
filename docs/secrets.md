@@ -13,7 +13,33 @@ und wie sie behandelt werden muessen. **Keine Werte** stehen hier.
 | `.secrets/convertx.env` | 600 | optional, Hinweise zum ConvertX-Admin | nein |
 | `.secrets/filebrowser.env` | 600 | Filebrowser Admin-Passwort (lokal generiert) | ja |
 | `.secrets/stirling-pdf.env` | 600 | Stirling PDF Initial-Login | ja |
+| `.secrets/authentik.env` | 600 | Authentik-SSO-Gateway (DB, Secret-Key, Bootstrap-Admin) | ja |
 | `~/.config/rclone/rclone.conf` | 600 | Google-Drive Token fuer restic via rclone | ja |
+
+### `.secrets/authentik.env`
+
+Variablen (nur Namen, keine Werte):
+
+- `AUTHENTIK_SECRET_KEY` — Django-Secret-Key fuer Authentik, 50+
+  Zeichen, kryptografisch zufaellig. Wechsel invalidiert bestehende
+  Sessions und signierte Token.
+- `AUTHENTIK_POSTGRESQL__PASSWORD` — Passwort, mit dem Authentik
+  sich an die eigene Postgres-Instanz (`filehub-authentik-db`)
+  anmeldet.
+- `POSTGRES_PASSWORD` — Passwort des Postgres-Containers
+  `filehub-authentik-db`. Muss mit
+  `AUTHENTIK_POSTGRESQL__PASSWORD` identisch sein.
+- `AUTHENTIK_BOOTSTRAP_PASSWORD` — Initial-Passwort des
+  Bootstrap-Admins `akadmin`. Wird nur beim ersten Start
+  ausgewertet, danach optional entfernen oder als Notnagel halten.
+- `AUTHENTIK_BOOTSTRAP_EMAIL` — Mail-Adresse des Bootstrap-Admins.
+- `AUTHENTIK_BOOTSTRAP_TOKEN` — optionales API-Bootstrap-Token, nur
+  setzen, wenn Provisioning via API geplant ist.
+
+Datei-Mode strikt `600`. Niemals in Compose-Dateien, Logs, Issues
+oder Git uebernehmen. Bootstrap-Variablen koennen nach Initial-Setup
+entfernt werden — siehe `docs/sso-gateway.md` und
+`docs/security.md`.
 
 `.secrets/` selbst hat Mode `700`. Alle drei Pfade `.env`, `.secrets/`, `.venv-*/`
 sind in `.gitignore` ausgeschlossen und duerfen niemals committed werden.
@@ -30,6 +56,13 @@ Ohne diese ist ein Restore aus dem Backup unmoeglich oder unvollstaendig:
 5. **Uptime-Kuma Admin** — Zugang zur UI; Reset siehe `docs/uptime-kuma.md`.
 6. **Filebrowser Admin** — initialer Login.
 7. **Stirling PDF Admin** — initialer Login.
+8. **`AUTHENTIK_SECRET_KEY`** — sonst sind bestehende Authentik-
+   Sessions und signierte Token nach Restore ungueltig.
+9. **`AUTHENTIK_POSTGRESQL__PASSWORD` / `POSTGRES_PASSWORD`** —
+   Authentik kann sonst nicht an die wiederhergestellte
+   Postgres-DB connecten.
+10. **`AUTHENTIK_BOOTSTRAP_PASSWORD`** — nur fuer einen erneuten
+    Initial-Bootstrap relevant; nach Setup optional.
 
 ## Passwortmanager-Pflicht
 

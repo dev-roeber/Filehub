@@ -1,0 +1,56 @@
+{
+    admin off
+    auto_https off
+    servers {
+        protocols h1 h2c
+    }
+}
+
+# Phase 1 Gateway - localhost-only, HTTP only, keine Subdomains zwingend.
+# Spaeter koennen pro App entweder Pfade ODER (besser) eigene Subdomain-Hosts
+# ergaenzt werden, sobald /etc/hosts oder DNS dafuer bereit ist. Beispiele:
+#
+#   # Variante A (Pfad-basiert):
+#   handle_path /paperless/* {
+#       forward_auth filehub-authentik-server:9000 { ... }
+#       reverse_proxy filehub-paperless:8000
+#   }
+#
+#   # Variante B (Subdomain-basiert, bevorzugt):
+#   paperless.filehub.local:8080 {
+#       forward_auth filehub-authentik-server:9000 { ... }
+#       reverse_proxy filehub-paperless:8000
+#   }
+#
+# Forward-Auth Outpost-Endpoint (Authentik) - MUSS direkt durchgereicht werden,
+# damit Authentik die Login-Seite ausliefern kann.
+:8080 {
+    log {
+        output stdout
+        format console
+        level INFO
+    }
+
+    # 1) Forward-Auth-Embedded-Outpost-Pfad ungefiltert an Authentik weiterreichen
+    handle /outpost.goauthentik.io/* {
+        reverse_proxy filehub-authentik-server:9000
+    }
+
+    # 2) Health-Endpoint des Gateways (ohne Auth) - fuer Uptime Kuma & docker-healthcheck
+    handle /_health {
+        respond "ok" 200
+    }
+
+    # 3) Alles andere -> Forward-Auth -> Homepage
+    handle {
+        forward_auth filehub-authentik-server:9000 {
+            uri /outpost.goauthentik.io/auth/caddy
+            # Nur diese Header an die Backends durchreichen (alles andere wird gestrippt).
+            copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid X-Authentik-Jwt X-Authentik-Meta-Jwks X-Authentik-Meta-Outpost X-Authentik-Meta-Provider X-Authentik-Meta-App X-Authentik-Meta-Version
+            trusted_proxies private_ranges
+        }
+
+        # Phase 1: Root zeigt auf Homepage
+        reverse_proxy filehub-homepage:3000
+    }
+}

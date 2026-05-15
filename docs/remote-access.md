@@ -69,5 +69,14 @@ Naechster Schritt: **Tailscale** auf Server und Endgeraeten installieren.
 Filebrowser und Stirling nicht hinter Authelia/Authentik o.ae. stehen,
 keine Public-Freigabe.
 
+Seit Phase 1 (Stand 2026-05-15) laeuft Authentik lokal als
+Forward-Auth-Gateway vor der Filehub-Homepage (HTTP, localhost-only,
+siehe `docs/sso-gateway.md`). Der naechste Remote-Schritt bleibt
+trotzdem **Tailscale**: das Authentik-Gateway wird ueber das
+Tailscale-Interface erreichbar gemacht, nicht ueber 80/443. Erst in
+Phase 2 wird Authentik als echtes OIDC pro App eingebunden und Caddy
+zum alleinigen Eingang. Authentik-UI auf Port 9000 wird **niemals**
+oeffentlich exponiert.
+
 Dieses Dokument enthaelt bewusst **keine Installationsanleitung**.
 Installation und Konfiguration erfolgen separat.
