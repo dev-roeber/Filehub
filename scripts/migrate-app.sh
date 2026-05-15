@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Filehub Migrate-App (Phase 1: dry-run/plan only).
+# Filehub Migrate-App (Phase 2: homepage-only execute).
 #
 # Zweck:
 #   Helfer fuer den Cutover Root-Compose -> apps/<id>/compose.yml.
-#   Phase 1: NUR planen / auditieren / Befehle drucken. Es werden KEINE
-#   docker compose up/down/stop/restart Aufrufe ausgefuehrt.
-#   `--execute` bricht bewusst mit exit 1 ab.
+#   - dry-run / print-commands / rollback-plan: read-only.
+#   - --execute (Phase 2): aktuell NUR fuer 'homepage' freigegeben.
+#     Erfordert zusaetzlich --yes-i-am-sure.
 #
 # Usage:
 #   scripts/migrate-app.sh <app> --dry-run
 #   scripts/migrate-app.sh <app> --print-commands
 #   scripts/migrate-app.sh <app> --rollback-plan
-#   scripts/migrate-app.sh <app> --execute   # exit 1: not implemented in phase 1
+#   scripts/migrate-app.sh homepage --execute --yes-i-am-sure
 #
 # Exit-Codes:
-#   0  dry-run/print/rollback erfolgreich ohne FAIL
-#   1  kein/unbekannter Modus, oder --execute (Phase-1-Hinweis)
-#   2  FAIL (App unbekannt, compose.yml fehlt, Authentik-Sonderfall)
+#   0  Aktion erfolgreich
+#   1  kein/unbekannter Modus, Confirmation fehlt
+#   2  Preflight/FAIL (App unbekannt, compose.yml fehlt, Authentik/Paperless gesperrt,
+#      execute fuer nicht-freigegebene App, registry-/runtime-audit FAIL)
+#   3  Rollback fehlgeschlagen
 #
 # Kommentare und Ausgaben bewusst ASCII-only (kein Umlaut).
 
@@ -40,6 +42,7 @@ fi
 
 APP=""
 MODE=""
+CONFIRM=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run|--print-commands|--rollback-plan|--execute)
@@ -48,6 +51,9 @@ for arg in "$@"; do
         exit 1
       fi
       MODE="$arg"
+      ;;
+    --yes-i-am-sure)
+      CONFIRM=1
       ;;
     -h|--help)
       usage
@@ -134,16 +140,6 @@ if [[ $app_known -eq 0 ]]; then
     echo "  - $id" >&2
   done
   exit 2
-fi
-
-# --execute: in Phase 1 nicht implementiert
-if [[ "$MODE" == "--execute" ]]; then
-  cat <<'MSG'
-ERROR: --execute ist in Phase 1 nicht implementiert.
-Nutze --dry-run / --print-commands / --rollback-plan, fuehre die Schritte
-manuell aus und verifiziere jeweils mit just runtime-audit.
-MSG
-  exit 1
 fi
 
 APP_DIR="apps/$APP"
@@ -532,6 +528,269 @@ if [[ "$MODE" == "--rollback-plan" ]]; then
     echo "# rekonstruiert werden (git history, Backup)."
   fi
   echo "just runtime-audit"
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Modus: --execute (Phase 2, homepage-only)
+# ---------------------------------------------------------------------------
+if [[ "$MODE" == "--execute" ]]; then
+
+  # Allow-Liste: aktuell nur homepage
+  EXECUTE_ALLOWED_APPS=("homepage")
+  allowed=0
+  for a in "${EXECUTE_ALLOWED_APPS[@]}"; do
+    [[ "$a" == "$APP" ]] && allowed=1
+  done
+
+  if [[ "$APP" == "paperless" ]]; then
+    echo "FAIL paperless ist gesperrt fuer --execute (DB-Helper, separate Phase)" >&2
+    exit 2
+  fi
+  # authentik wurde oben schon mit exit 2 abgefangen.
+
+  if [[ $allowed -eq 0 ]]; then
+    echo "FAIL execute currently allowed only for homepage (angefragt: $APP)" >&2
+    exit 2
+  fi
+
+  if [[ $CONFIRM -ne 1 ]]; then
+    echo "ERROR: --execute braucht zusaetzlich --yes-i-am-sure" >&2
+    echo "       Beispiel: scripts/migrate-app.sh homepage --execute --yes-i-am-sure" >&2
+    exit 1
+  fi
+
+  echo "=== migrate-app EXECUTE: $APP ==="
+  echo "WARN destruktive Aktion: stop+rm Root-Container, up App-Compose"
+  echo
+
+  # ---------------- Preflight ----------------
+  echo "-- Preflight --"
+  PRE_FAIL=0
+
+  # 1. App-Compose vorhanden
+  if [[ -f "$APP_COMPOSE" ]]; then
+    echo "OK   $APP_COMPOSE vorhanden"
+  else
+    echo "FAIL $APP_COMPOSE fehlt"
+    PRE_FAIL=1
+  fi
+
+  # 2. backup.include vorhanden
+  if [[ -f "$APP_BACKUP_INC" ]]; then
+    echo "OK   $APP_BACKUP_INC vorhanden"
+  else
+    echo "FAIL $APP_BACKUP_INC fehlt"
+    PRE_FAIL=1
+  fi
+
+  # 3. healthcheck.sh vorhanden + executable
+  if [[ -x "$APP_HEALTH" ]]; then
+    echo "OK   $APP_HEALTH executable"
+  else
+    echo "FAIL $APP_HEALTH fehlt oder nicht executable"
+    PRE_FAIL=1
+  fi
+
+  # 4. docker compose config -q fuer App-Compose
+  if docker compose -f "$APP_COMPOSE" config -q >/dev/null 2>&1; then
+    echo "OK   docker compose config -q $APP_COMPOSE"
+  else
+    echo "FAIL docker compose config -q $APP_COMPOSE schlug fehl"
+    PRE_FAIL=1
+  fi
+
+  # 5. Root-Compose-Match + Service
+  if [[ -n "$ROOT_MATCH_FILE" && -n "$ROOT_SERVICE" ]]; then
+    echo "OK   Root-Match: $ROOT_MATCH_FILE / service=$ROOT_SERVICE"
+  else
+    echo "FAIL kein Root-Compose-Match (file=$ROOT_MATCH_FILE service=$ROOT_SERVICE)"
+    PRE_FAIL=1
+  fi
+
+  # 6. Primary vorhanden
+  if [[ -z "$PRIMARY" ]]; then
+    echo "FAIL kein primary container_name in $APP_COMPOSE"
+    PRE_FAIL=1
+  else
+    echo "OK   primary container_name=$PRIMARY"
+  fi
+
+  # 7. Aktueller Source = root oder missing (nicht app)
+  echo "INFO aktueller Status: run=$S_RUN health=$S_HEALTH source=$S_SOURCE"
+  case "$S_SOURCE" in
+    root)
+      echo "OK   aktuell source=root - Cutover sinnvoll"
+      ;;
+    app)
+      echo "FAIL source=app - bereits aus apps/$APP/compose.yml betrieben"
+      PRE_FAIL=1
+      ;;
+    *)
+      echo "FAIL source=$S_SOURCE - nicht eindeutig migrierbar"
+      PRE_FAIL=1
+      ;;
+  esac
+
+  # 8. registry-audit ohne FAIL
+  if scripts/registry-audit.sh --quiet >/dev/null 2>&1; then
+    echo "OK   registry-audit ohne FAIL"
+  else
+    echo "FAIL registry-audit meldet FAIL"
+    PRE_FAIL=1
+  fi
+
+  # 9. runtime-audit ohne FAIL (exit 2 = FAIL, exit 0/1 ok)
+  scripts/runtime-audit.sh --quiet >/dev/null 2>&1
+  rc=$?
+  if [[ $rc -eq 2 ]]; then
+    echo "FAIL runtime-audit meldet FAIL (exit 2)"
+    PRE_FAIL=1
+  else
+    echo "OK   runtime-audit ohne FAIL (exit $rc)"
+  fi
+
+  # 10. Kein App-Compose-Container schon parallel aktiv
+  #     (sollte nicht, weil Doppelstart von Docker geblockt wuerde -
+  #      aber wir loggen es als Sicherheitscheck)
+  CONFLICT=0
+  while IFS= read -r n; do
+    [[ -z "$n" ]] && continue
+    if docker inspect "$n" >/dev/null 2>&1; then
+      cfg="$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}' "$n" 2>/dev/null || true)"
+      if echo "$cfg" | grep -q "apps/$APP/compose.yml"; then
+        state="$(docker inspect --format '{{.State.Status}}' "$n" 2>/dev/null)"
+        if [[ "$state" == "running" ]]; then
+          echo "FAIL Container $n laeuft bereits aus apps/$APP/compose.yml"
+          CONFLICT=1
+        fi
+      fi
+    fi
+  done < <(list_app_containers "$APP_COMPOSE")
+  if [[ $CONFLICT -eq 0 ]]; then
+    echo "OK   keine Duplikat-Konflikte"
+  else
+    PRE_FAIL=1
+  fi
+
+  echo
+
+  if (( PRE_FAIL > 0 )); then
+    echo "ABORT Preflight FAIL - keine Aktion ausgefuehrt" >&2
+    exit 2
+  fi
+
+  echo "OK   Preflight komplett bestanden"
+  echo
+
+  # ---------------- Backup ----------------
+  echo "-- Backup --"
+  echo ">> just backup-app $APP"
+  if just backup-app "$APP"; then
+    echo "OK   Backup erfolgreich"
+  else
+    echo "FAIL Backup fehlgeschlagen - Abbruch ohne Container-Eingriff" >&2
+    exit 2
+  fi
+
+  # Verifizieren: Artefakt jetzt vorhanden und frisch
+  if scripts/backup-age.sh --quiet "$APP"; then
+    echo "OK   backup-age bestaetigt frisches Artefakt"
+  else
+    echo "FAIL backup-age findet kein frisches Artefakt - Abbruch" >&2
+    exit 2
+  fi
+  echo
+
+  # ---------------- Stop Root-Service ----------------
+  echo "-- Stop Root-Service --"
+  ROOT_CMD=(docker compose -f compose.yml -f "$ROOT_MATCH_FILE")
+  echo ">> ${ROOT_CMD[*]} stop $ROOT_SERVICE"
+  if ! "${ROOT_CMD[@]}" stop "$ROOT_SERVICE"; then
+    echo "FAIL stop fehlgeschlagen" >&2
+    exit 2
+  fi
+  echo ">> ${ROOT_CMD[*]} rm -f $ROOT_SERVICE  (keine Volumes!)"
+  if ! "${ROOT_CMD[@]}" rm -f "$ROOT_SERVICE"; then
+    echo "WARN rm -f fehlgeschlagen - versuche trotzdem App-Start"
+  fi
+  echo
+
+  # ---------------- App-Compose hochfahren ----------------
+  echo "-- App-Compose hochfahren --"
+  echo ">> just app-up $APP"
+  APP_UP_FAIL=0
+  if ! just app-up "$APP"; then
+    echo "FAIL just app-up $APP schlug fehl"
+    APP_UP_FAIL=1
+  else
+    echo "OK   App-Compose gestartet"
+  fi
+
+  # ---------------- Healthcheck-Loop ----------------
+  HEALTH_OK=0
+  if [[ $APP_UP_FAIL -eq 0 ]]; then
+    echo
+    echo "-- Healthcheck-Loop (bis 60s, alle 5s) --"
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+      if just app-health "$APP" >/dev/null 2>&1; then
+        HEALTH_OK=1
+        echo "OK   app-health bestanden (Versuch $i)"
+        break
+      fi
+      echo "INFO Versuch $i: noch nicht healthy, warte 5s"
+      sleep 5
+    done
+    if [[ $HEALTH_OK -ne 1 ]]; then
+      echo "FAIL app-health nicht bestanden innerhalb 60s"
+    fi
+  fi
+
+  # ---------------- Rollback wenn noetig ----------------
+  if [[ $APP_UP_FAIL -ne 0 || $HEALTH_OK -ne 1 ]]; then
+    echo
+    echo "!! Migration fehlgeschlagen - ROLLBACK wird ausgefuehrt"
+    echo "-- Rollback --"
+    ROLLBACK_FAIL=0
+    echo ">> just app-down $APP"
+    if ! just app-down "$APP"; then
+      echo "WARN just app-down $APP schlug fehl - fortsetzen"
+    fi
+    echo ">> ${ROOT_CMD[*]} up -d $ROOT_SERVICE"
+    if ! "${ROOT_CMD[@]}" up -d "$ROOT_SERVICE"; then
+      echo "FAIL Rollback up -d fehlgeschlagen"
+      ROLLBACK_FAIL=1
+    fi
+    echo ">> Rollback-Healthcheck"
+    sleep 5
+    if just app-health "$APP" >/dev/null 2>&1; then
+      echo "OK   App wieder healthy aus Root-Compose"
+    else
+      echo "WARN App nach Rollback nicht sofort healthy - manuell verifizieren"
+    fi
+    echo ">> just runtime-audit"
+    scripts/runtime-audit.sh --quiet || true
+
+    if [[ $ROLLBACK_FAIL -ne 0 ]]; then
+      echo "FAIL Rollback fehlgeschlagen - MANUELLE NACHARBEIT NOETIG" >&2
+      exit 3
+    fi
+    echo "INFO Rollback durchgefuehrt - urspruenglicher Stand wiederhergestellt"
+    exit 2
+  fi
+
+  # ---------------- Post-Audit ----------------
+  echo
+  echo "-- Post-Audit --"
+  echo ">> just runtime-audit"
+  scripts/runtime-audit.sh --quiet || true
+  echo ">> just migration-status (Auszug $APP)"
+  scripts/migration-status.sh --quiet 2>/dev/null | grep -E "^($APP\b|APP\b)" || scripts/migration-status.sh 2>/dev/null | grep -E "^($APP\b|APP\b)" || true
+
+  echo
+  echo "=== migrate-app EXECUTE: $APP ABGESCHLOSSEN ==="
+  echo "OK   $APP laeuft jetzt aus apps/$APP/compose.yml"
+  echo "INFO Root-Compose-Datei $ROOT_MATCH_FILE bleibt als Rollback-Reserve im Repo"
   exit 0
 fi
 
