@@ -1,7 +1,7 @@
 # Validation: modulare App-Struktur
 
-Letztes Update: 2026-05-15 nach Migration-Phase-1
-(e7090eb..HEAD: migration-status, migrate-app dry-run, MIGRATION-Doku).
+Letztes Update: 2026-05-15 nach Migration-Phase-2
+(c57031e..HEAD: backup-age, homepage --execute, just migrate-execute-homepage).
 Vorherige Etappen: runtime-audit (e3ccbe7), registry-audit (958e612),
 homepage-apply (4647b5e), caddy-Haertung (4958a03).
 
@@ -176,7 +176,29 @@ runtime-Teil mit einer WARN-Zeile uebersprungen statt das Skript abzubrechen.
 | `scripts/migrate-app.sh homepage --execute` | exit 1, Phase-1-Hinweis |
 
 Read-only verifiziert: keine `docker stop/start/restart`, kein
-`docker compose up/down` durch Migration-Skripte.
+`docker compose up/down` durch Migration-Skripte (im read-only-Modus).
+
+## Migration-Phase-2 (homepage --execute)
+
+| Aufruf | Ergebnis |
+|---|---|
+| `scripts/backup-age.sh homepage` (ohne Backup) | WARN + RECOMMEND, exit 2 |
+| `scripts/migrate-app.sh paperless --execute` | FAIL paperless gesperrt, exit 2 |
+| `scripts/migrate-app.sh authentik --execute` | FAIL separate Phase, exit 2 |
+| `scripts/migrate-app.sh convertx --execute --yes-i-am-sure` | FAIL allow-list, exit 2 |
+| `scripts/migrate-app.sh homepage --execute` (ohne Confirm) | ERROR braucht --yes-i-am-sure, exit 1 |
+| `just migrate-execute-homepage` | Preflight + Backup + Cutover + Healthcheck-Loop |
+
+Execute fuehrt aus:
+1. Preflight (10 Checks)
+2. `just backup-app homepage` + `backup-age` Verifikation
+3. `docker compose stop homepage && rm -f homepage` aus Root-Compose-Match
+4. `just app-up homepage`
+5. Healthcheck-Loop bis 60s (12x5s)
+6. Bei Fehler: automatischer Rollback (app-down + Root up -d)
+7. Post-Audit: runtime-audit + migration-status
+
+Exit-Codes: 0 OK, 2 Preflight/Migration-Fail, 3 Rollback-Fail.
 
 ## Keine destruktiven Aenderungen
 

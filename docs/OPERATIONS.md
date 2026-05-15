@@ -149,12 +149,45 @@ gibt Exit-Code 0 zurueck, wenn die App gesund ist.
 4. `just app-health <id>` -- Gesundheit verifizieren.
 5. Bei Fehler: `just restore-app <id> <snapshot>`.
 
+## Migration zwischen Root-Compose und apps/<id>/
+
+Werkzeuge (read-only, Phase 1):
+
+```
+just migration-status               # Tabelle pro App: source/safe
+just migrate-dry-run <app>          # Pre-Check + Empfehlung
+just migrate-plan <app>             # geplante Cutover-Befehle
+just migrate-rollback-plan <app>    # geplanter Rollback
+just backup-age <app>               # Existenz + Alter des App-Backups
+```
+
+Execute (Phase 2, **nur homepage**):
+
+```
+just migrate-execute-homepage       # Live-Cutover homepage, mit Auto-Rollback
+```
+
+Sperren in der Execute-Logik:
+- Nur `homepage` auf der Allow-Liste.
+- `paperless` und `authentik` sind hart blockiert (separate Phase).
+- Pflicht-Flag `--yes-i-am-sure`, sonst Abbruch (exit 1).
+- Preflight: 10 Checks (Compose-Dateien, registry-audit, runtime-audit,
+  source=root, Root-Match eindeutig, keine Duplikate).
+- Backup ist Pflicht (`just backup-app <app>`), Verifikation via
+  `scripts/backup-age.sh --quiet`.
+- Healthcheck-Loop 12x5s nach `just app-up`.
+- Bei Fehler: automatischer Rollback (`just app-down` + Root `up -d`),
+  keine Volume-Loeschung.
+
+Volle Details siehe `docs/MODULAR_RUNTIME_MIGRATION.md`.
+
 ## Verweise
 
 - `docs/APPS.md` -- App-Liste und Quickstart.
 - `docs/BACKUP.md` -- Modulares Backup.
 - `docs/update-runbook.md` -- detaillierter Update-Runbook.
 - `docs/operations.md` -- bestehende Ops-Notizen (kleines o).
+- `docs/MODULAR_RUNTIME_MIGRATION.md` -- Cutover-Plan + Execute-Details.
 
 ## Homepage-Generator
 

@@ -143,9 +143,63 @@ Plan fuer die Authentik-Phase (nicht Teil dieses Cutovers):
 | `just runtime-audit` | Live-Drift gegen Registry + Compose |
 | `just registry-audit` | Datei-Konsistenz |
 
-`scripts/migrate-app.sh --execute` ist in Phase 1 bewusst nicht
-implementiert. Cutover laeuft manuell, mit dem ausgegebenen Plan als
+`scripts/migrate-app.sh --execute` ist in Phase 2 implementiert, aber
+**nur fuer homepage freigegeben**. Aufruf:
+
+```
+just migrate-execute-homepage
+# = scripts/migrate-app.sh homepage --execute --yes-i-am-sure
+```
+
+Fuer alle anderen Apps bricht `--execute` mit exit 2 ab. Cutover dieser
+Apps laeuft weiterhin manuell, mit dem `--print-commands`-Output als
 Spickzettel.
+
+### Warum nur homepage in Phase 2
+
+- Homepage hat keinen eigenen DB-State und nutzt nur Bind-Mounts auf
+  `config/homepage`. Rollback durch reines Container-Recreate ist sicher.
+- Helper-Container fehlen, Healthcheck ist HTTP-basiert und schnell.
+- Niedrigster Blast-Radius im Stack -- ideal als erster Cutover.
+
+paperless wird hart blockiert (DB-Helper-Container), authentik bleibt
+in einer separaten Phase (Identity-Provider, eigenes Backup-Format).
+
+### Preflight im Execute-Modus
+
+Vor jedem Stop laeuft eine Pflicht-Pruefung:
+
+1. `apps/<app>/compose.yml`, `backup.include`, `healthcheck.sh` vorhanden.
+2. `docker compose -f apps/<app>/compose.yml config -q` OK.
+3. Root-Compose-Match + Service-Name eindeutig auffindbar.
+4. `migration-status` liefert `source=root` (keine Doppel-Migration).
+5. `registry-audit` ohne FAIL.
+6. `runtime-audit` ohne FAIL.
+7. Kein laufender App-Compose-Duplikat-Container.
+
+Bei jedem FAIL: Abbruch ohne Container-Eingriff (exit 2).
+
+### Backup-Pflicht
+
+`--execute` ruft intern `just backup-app <app>` auf. Anschliessend
+verifiziert `scripts/backup-age.sh --quiet <app>`, dass ein frisches
+`<app>-app.tar.gz`-Artefakt unter `backups/<TS>/` existiert. Fehlt das
+Artefakt nach dem Backup-Lauf, wird vor dem Container-Eingriff
+abgebrochen (exit 2).
+
+### Healthcheck-Loop
+
+Nach `just app-up <app>` wird bis zu 60 Sekunden lang alle 5 Sekunden
+`just app-health <app>` gepollt. Schlaegt der Check 12x in Folge fehl,
+greift das automatische Rollback:
+
+```
+just app-down <app>
+docker compose -f compose.yml -f <root-match.yml> up -d <service>
+```
+
+Rollback loescht keine Volumes. Exit-Code 3 zeigt an, dass auch der
+Rollback fehlgeschlagen ist und manuelle Nacharbeit noetig ist.
 
 ## Was nicht passieren darf
 
