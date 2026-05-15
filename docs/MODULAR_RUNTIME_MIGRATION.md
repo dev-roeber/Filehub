@@ -46,10 +46,10 @@ ob alle Vorgaenger `source=app` haben.
 | B | filebrowser | erledigt (2026-05-15) |
 | C-1 | stirling-pdf | erledigt (2026-05-15) |
 | C-2 | paperless | erledigt (2026-05-15, Multi-Container-Cutover) |
-| D | convertx | naechster Live-Cutover |
-| E | uptime-kuma | folgt nach convertx |
-| F | dozzle | folgt zuletzt |
-| -- | authentik | separate Phase, blockiert in migrate-app.sh |
+| D | convertx | erledigt (2026-05-15) |
+| E | uptime-kuma | erledigt (2026-05-15, 120s/5s Healthcheck-Default) |
+| F | dozzle | vorbereitet, Dry-Run gruen, naechster Live-Cutover |
+| -- | authentik | separate Sonderphase, blockiert in migrate-app.sh |
 
 ### Warum diese Reihenfolge
 
