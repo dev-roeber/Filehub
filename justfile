@@ -151,6 +151,18 @@ runtime-audit-quiet:
 runtime-audit-strict:
     ./scripts/runtime-audit.sh --strict
 
+migration-status:
+    ./scripts/migration-status.sh
+
+migrate-dry-run app:
+    ./scripts/migrate-app.sh {{app}} --dry-run
+
+migrate-plan app:
+    ./scripts/migrate-app.sh {{app}} --print-commands
+
+migrate-rollback-plan app:
+    ./scripts/migrate-app.sh {{app}} --rollback-plan
+
 audit-report-notify:
     ./scripts/audit-report.sh --notify
 

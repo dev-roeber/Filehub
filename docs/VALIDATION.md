@@ -1,7 +1,8 @@
 # Validation: modulare App-Struktur
 
-Letztes Update: 2026-05-15 nach Runtime-Audit-Serie
-(e3ccbe7..HEAD). Vorherige Etappen: registry-audit (958e612),
+Letztes Update: 2026-05-15 nach Migration-Phase-1
+(e7090eb..HEAD: migration-status, migrate-app dry-run, MIGRATION-Doku).
+Vorherige Etappen: runtime-audit (e3ccbe7), registry-audit (958e612),
 homepage-apply (4647b5e), caddy-Haertung (4958a03).
 
 ## docker compose config
@@ -161,6 +162,21 @@ runtime-Teil mit einer WARN-Zeile uebersprungen statt das Skript abzubrechen.
 | Quelle leer (size 0) | exit 3 |
 | `scripts/caddy-disable.sh homepage` | Datei entfernt, idempotent |
 | Symlink-Target ausserhalb enabled/ | exit 5 (Schutz) |
+
+## Migration-Werkzeuge (Phase 1, Dry-Run only)
+
+| Aufruf | Ergebnis |
+|---|---|
+| `just migration-status` | 7 Apps, alle `safe=yes`, alle `source=root`, exit 0 |
+| `just migrate-dry-run homepage` | Registry/Dateien/Container/Root-Match OK, Empfehlung print-commands |
+| `just migrate-plan homepage` | 5-Schritt-Plan mit `compose.observability.yml` als Root-Match |
+| `just migrate-rollback-plan homepage` | `just app-down` + `up -d homepage` aus Root-Compose |
+| `scripts/migrate-app.sh authentik --dry-run` | exit 2 (separate Migrationsphase) |
+| `scripts/migrate-app.sh unknown --dry-run` | exit 2 (Registry-FAIL) |
+| `scripts/migrate-app.sh homepage --execute` | exit 1, Phase-1-Hinweis |
+
+Read-only verifiziert: keine `docker stop/start/restart`, kein
+`docker compose up/down` durch Migration-Skripte.
 
 ## Keine destruktiven Aenderungen
 
