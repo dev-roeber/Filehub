@@ -50,7 +50,12 @@
             trusted_proxies private_ranges
         }
 
-        # Phase 1: Root zeigt auf Homepage
-        reverse_proxy filehub-homepage:3000
+        # Phase 1: Root zeigt auf Homepage.
+        # Host-Header muss auf "localhost" rewritten werden, da gethomepage gegen
+        # HOMEPAGE_ALLOWED_HOSTS (localhost,127.0.0.1) prueft und der Browser
+        # andernfalls "127.0.0.1:3080" mit Port liefert -> "Host validation failed".
+        reverse_proxy filehub-homepage:3000 {
+            header_up Host localhost
+        }
     }
 }
