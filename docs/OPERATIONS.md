@@ -161,11 +161,17 @@ just migrate-rollback-plan <app>    # geplanter Rollback
 just backup-age <app>               # Existenz + Alter des App-Backups
 ```
 
-Execute (Phase 2, **nur homepage**):
+Execute (sukzessive Freigabe je App):
 
 ```
-just migrate-execute-homepage       # Live-Cutover homepage, mit Auto-Rollback
+just migrate-execute-homepage       # Phase A, erledigt
+just migrate-execute-filebrowser    # Phase B, erledigt
+# stirling-pdf/paperless/convertx/uptime-kuma/dozzle folgen einzeln.
 ```
+
+Die Reihenfolge (homepage -> filebrowser -> stirling-pdf -> paperless ->
+convertx -> uptime-kuma -> dozzle) ist in `scripts/migrate-app.sh`
+hartcodiert (`MIGRATION_ORDER`). Vorgaenger-Check vor jedem Execute.
 
 Sperren in der Execute-Logik:
 - Nur `homepage` auf der Allow-Liste.

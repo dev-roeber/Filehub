@@ -36,16 +36,51 @@ als INFO.
 
 ## Reihenfolge
 
-Aufsteigender Risiko-Score: zuerst zustandslose Apps, dann komplexe.
+Diese Reihenfolge ist **verbindlich** und im Code in `scripts/migrate-app.sh`
+als `MIGRATION_ORDER` hinterlegt. Vor jedem `--execute` prueft das Skript,
+ob alle Vorgaenger `source=app` haben.
 
-1. **homepage** -- rein lesendes Dashboard, schnell rollbackbar.
-2. **dozzle** -- nur Docker-Socket-Reader, kein eigener State.
-3. **stirling-pdf** -- temporaere Daten, kein DB.
-4. **convertx** -- SQLite-State, App-eigene Volumes.
-5. **filebrowser** -- bind-mount auf Datenverzeichnis, State in App-DB.
-6. **uptime-kuma** -- eigener State, Monitor-Konfiguration.
-7. **paperless** -- Sonderfall (Postgres, Redis, Tika, Gotenberg).
-8. **authentik** -- separate Phase, nicht im selben Wartungsfenster.
+| Phase | App | Status |
+|---|---|---|
+| A | homepage | erledigt (2026-05-15) |
+| B | filebrowser | erledigt (2026-05-15) |
+| C | stirling-pdf | vorbereitet, Dry-Run gruen |
+| C | paperless | Sonderfall, nur Dry-Run, eigene Phase mit Wartungsfenster |
+| D | convertx | folgt |
+| E | uptime-kuma | folgt |
+| F | dozzle | folgt |
+| -- | authentik | separate Phase, blockiert in migrate-app.sh |
+
+### Warum diese Reihenfolge
+
+- **homepage** zuerst, weil zustandslos und niedrigster Blast-Radius.
+- **filebrowser** vor allem anderen, weil Bind-Mount auf Datenverzeichnis
+  schon dezentralisiert ist und Rollback einfach.
+- **stirling-pdf + paperless** als fachlicher Block (Dokument-Workflow),
+  technisch getrennt migriert. Stirling zuerst (zustandslos), dann
+  Paperless (DB + 3 Helper, Wartungsfenster).
+- **convertx** nach dem Dokument-Block, weil App-eigene SQLite-Volumes.
+- **uptime-kuma** nach convertx, weil Monitor-State.
+- **dozzle** als letzter Schritt -- nicht vorziehen, obwohl risikoarm.
+  Begruendung: Dozzle ist Diagnose-Werkzeug. Solange noch andere Apps
+  migrieren, soll Dozzle aus Root-Compose erreichbar bleiben, um
+  Logs zu zeigen, falls eine Migration in den Rollback geht.
+- **authentik** in einer komplett eigenen Phase, mit pg_dump + Redis
+  + Provider-Export.
+
+### Reihenfolge erzwingen / umgehen
+
+- `--override-order` umgeht die Pruefung, **aber nicht fuer paperless**.
+- Paperless braucht zusaetzlich `--allow-paperless --yes-i-am-sure`.
+- `--override-order` ist ein Notfall-Flag (z.B. Wiederholung nach
+  Teil-Migration). Standard ist immer die harte Reihenfolge.
+
+### Warum `safe=no` fuer bereits migrierte Apps
+
+`migration-status` markiert eine App als `safe=no`, sobald
+`source=app`. Das ist kein Fehler: es zeigt "nicht (mehr) migrierbar",
+weil schon migriert. Falls eine bereits migrierte App im Status als
+`safe=no` auftaucht, ist das gewuenscht und braucht keine Aktion.
 
 ## Standardablauf pro App
 
@@ -115,6 +150,27 @@ Konsequenzen:
   (`db`, `redis`, `tika`, `gotenberg`), dann den Webserver.
 - Wenn Healthchecks failen: Rollback sofort durchziehen, nicht
   rumbasteln.
+
+### TODOs vor Paperless-Cutover
+
+`migrate-app.sh --print-commands paperless` ist aktuell **zu generisch**:
+es stoppt nur `paperless-db`, nicht die Helper und nicht den Webserver.
+Vor dem ersten Paperless-Cutover muss daher:
+
+1. Paperless-spezifische Stop-/Start-Reihenfolge im Script codieren:
+   - Stop: webserver -> tika -> gotenberg -> redis -> db
+   - Start (via App-Compose): db -> redis -> tika -> gotenberg -> webserver
+2. `MIGRATE_HEALTH_TIMEOUT_SECONDS=300` als Default fuer paperless setzen.
+3. Healthcheck darf erst dann "OK" melden, wenn alle 5 Container healthy
+   sind (nicht nur der Primary).
+4. Pflicht-Backup ist bereits da -- nur explizit dokumentieren.
+5. Restore-Hinweis: bei DB-Korruption Wiederherstellung via
+   `backups/<TS>/paperless-postgres.sql` + Restic-Snapshot
+   `data/paperless`.
+
+Diese Punkte sind nicht Teil von Phase B. Paperless-Execute ist daher
+weiterhin via Allow-Liste blockiert und braucht `--allow-paperless`
+zusaetzlich, wenn die Sonderlogik spaeter ergaenzt ist.
 
 ## Sonderfall Authentik
 
@@ -189,9 +245,23 @@ abgebrochen (exit 2).
 
 ### Healthcheck-Loop
 
-Nach `just app-up <app>` wird bis zu 60 Sekunden lang alle 5 Sekunden
-`just app-health <app>` gepollt. Schlaegt der Check 12x in Folge fehl,
-greift das automatische Rollback:
+Nach `just app-up <app>` wird `just app-health <app>` gepollt. Standard
+ist 60 Sekunden mit 5-Sekunden-Intervall (12 Versuche). Per
+Environment-Variable einstellbar:
+
+- `MIGRATE_HEALTH_TIMEOUT_SECONDS` (default 60)
+- `MIGRATE_HEALTH_INTERVAL_SECONDS` (default 5)
+
+Beispiel fuer paperless-Phase:
+
+```
+MIGRATE_HEALTH_TIMEOUT_SECONDS=300 \
+MIGRATE_HEALTH_INTERVAL_SECONDS=10 \
+  scripts/migrate-app.sh paperless --execute --allow-paperless --yes-i-am-sure
+```
+
+Schlaegt der Check innerhalb des Timeouts nicht durch, greift das
+automatische Rollback:
 
 ```
 just app-down <app>
