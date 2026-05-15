@@ -181,6 +181,9 @@ migrate-execute-convertx:
 migrate-execute-uptime-kuma:
     ./scripts/migrate-app.sh uptime-kuma --execute --yes-i-am-sure
 
+migrate-execute-dozzle:
+    ./scripts/migrate-app.sh dozzle --execute --yes-i-am-sure
+
 # Paperless Multi-Container-Cutover. Erfordert Wartungsfenster und alle
 # erweiterten Preflight-Checks. Nicht idempotent. Kein Auto-Rollback ohne
 # DB-Snapshot.

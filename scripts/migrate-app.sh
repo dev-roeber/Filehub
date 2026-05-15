@@ -603,9 +603,9 @@ fi
 if [[ "$MODE" == "--execute" ]]; then
 
   # Allow-Liste: homepage (A), filebrowser (B), stirling-pdf (C-1),
-  # convertx (D), uptime-kuma (E).
+  # convertx (D), uptime-kuma (E), dozzle (F).
   # paperless (C-2) ist NUR ueber --allow-paperless erreichbar.
-  EXECUTE_ALLOWED_APPS=("homepage" "filebrowser" "stirling-pdf" "convertx" "uptime-kuma")
+  EXECUTE_ALLOWED_APPS=("homepage" "filebrowser" "stirling-pdf" "convertx" "uptime-kuma" "dozzle")
   # Apps, die zusaetzlich --allow-paperless erfordern (Multi-Container-Sonderfall)
   if [[ "$APP" == "paperless" && $ALLOW_PAPERLESS -eq 1 ]]; then
     EXECUTE_ALLOWED_APPS+=("paperless")
