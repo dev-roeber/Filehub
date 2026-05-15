@@ -1,0 +1,12 @@
+apiVersion: 1
+providers:
+  - name: filehub-defaults
+    orgId: 1
+    folder: Filehub
+    type: file
+    disableDeletion: false
+    editable: true
+    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards
