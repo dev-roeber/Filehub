@@ -98,6 +98,50 @@ Zugriff bestehen. UFW erlaubt weiterhin nur 22/tcp.
    die Authentik-Login-Seite erfolgen. Nach erfolgreichem Login
    wird die Filehub-Homepage angezeigt.
 
+## Phase 1.1 UI Bootstrap Checkliste
+
+Einmaliger manueller Schritt. Sebastian fuehrt diese Schritte in einem
+Browser durch, alles geschieht ueber `127.0.0.1` (kein Remote).
+
+- [ ] **Login URL:** `http://127.0.0.1:9000/`
+- [ ] **Benutzer:** `akadmin`
+- [ ] **Passwort:** aus `.secrets/authentik.env`, Schluessel
+  `AUTHENTIK_BOOTSTRAP_PASSWORD`. Wert NIE kopieren, NIE in Logs,
+  NIE in Chats. Manager: lokaler Passwortmanager.
+- [ ] **Application anlegen:** Directory -> Applications -> Create.
+  - Name: `Filehub Homepage`
+  - Slug: `filehub-homepage`
+  - Provider: neuen Proxy-Provider auswaehlen (siehe naechster Punkt)
+- [ ] **Proxy-Provider anlegen:** Applications -> Providers -> Create.
+  - Type: `Proxy Provider`
+  - Name: `filehub-homepage-proxy`
+  - Authorization flow: `default-provider-authorization-implicit-consent`
+  - External host: `http://127.0.0.1:3080/`
+  - Mode: `Forward auth (single application)`
+- [ ] **Embedded Outpost zuordnen:** Applications -> Outposts ->
+  `authentik Embedded Outpost` -> Edit -> Applications -> die
+  oben angelegte Application aktivieren -> Save.
+  Falls die Liste nicht erscheint, einmal auf "Update Outpost" klicken.
+- [ ] **Erwarteter Fehlerzustand VOR Abschluss:**
+  `curl -I http://127.0.0.1:3080/` -> HTTP 404. Das ist Authentik
+  ohne assoziierte Application. Kein Daten-Leak, aber Gateway
+  nicht funktional.
+- [ ] **Erwarteter Test NACH Abschluss:**
+  - `curl -i http://127.0.0.1:3080/` -> HTTP 302 mit
+    `Location: http://127.0.0.1:9000/if/flow/...` (Login-Redirect).
+  - Im Browser `http://127.0.0.1:3080/` aufrufen ->
+    Authentik-Login-Seite -> akadmin -> Filehub Homepage erscheint.
+- [ ] **Verifikation per just-Target:**
+  `just gateway-bootstrap-check` (siehe Operative Befehle) gibt
+  `STATE=PRE-BOOTSTRAP` (404) oder `STATE=POST-BOOTSTRAP` (302 mit
+  korrekter Login-URL) zurueck.
+- [ ] **Nach erfolgreichem Login:** Pruefen, ob `AUTHENTIK_BOOTSTRAP_PASSWORD`
+  weiterhin in `.secrets/authentik.env` benoetigt wird. Hinweis: Authentik
+  wertet die Bootstrap-Variablen nur beim allerersten Container-Start aus.
+  Im Normalbetrieb kann der Eintrag bleiben oder entfernt werden;
+  Empfehlung: bleiben, damit ein Recover bei DB-Verlust weiterhin
+  reproduzierbar ist.
+
 ## Phase-2-Plan
 
 - Subdomains pro App (`paperless.filehub.local`, ...) via
@@ -138,6 +182,7 @@ Zugriff bestehen. UFW erlaubt weiterhin nur 22/tcp.
 | `just logs-auth` | Logs von Authentik-Server/-Worker/-DB/-Redis |
 | `just auth-status` | Healthcheck Authentik (HTTP 9000) |
 | `just gateway-status` | Healthcheck Gateway (HTTP 3080, Auth-Redirect erwartet) |
+| `just gateway-bootstrap-check` | Pruefung Phase 1.1: PRE-BOOTSTRAP (404) vs. POST-BOOTSTRAP (302 Login-Redirect) |
 
 ## Troubleshooting
 

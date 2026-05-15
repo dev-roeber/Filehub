@@ -199,3 +199,8 @@ gateway-status:
     @echo "---"
     @curl -fsS -o /dev/null -w 'gateway-health (http://127.0.0.1:3080/_health): %{http_code}\n' --max-time 5 http://127.0.0.1:3080/_health || true
     @curl -fsS -o /dev/null -w 'gateway-root  (http://127.0.0.1:3080/):         %{http_code}\n' --max-time 5 http://127.0.0.1:3080/ || true
+
+# Read-only Check: unterscheidet zwischen PRE-BOOTSTRAP (404 vom Embedded Outpost)
+# und POST-BOOTSTRAP (302 mit Login-Redirect auf Authentik). Aendert nichts.
+gateway-bootstrap-check:
+    ./scripts/gateway-bootstrap-check.sh
