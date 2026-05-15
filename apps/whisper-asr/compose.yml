@@ -17,7 +17,7 @@ networks:
 
 services:
   whisper-asr:
-    image: onerahmet/openai-whisper-asr-webservice:v1.7.0
+    image: ${WHISPER_ASR_IMAGE:-onerahmet/openai-whisper-asr-webservice:v1.7.0}
     container_name: filehub-whisper-asr
     restart: unless-stopped
     ports:
@@ -38,7 +38,12 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s
+      # start_period an Modellgroesse anpassen:
+      #   tiny/base   ->  60s
+      #   small       -> 120s (Default)
+      #   medium      -> 300s
+      #   large       -> 600s
+      start_period: ${WHISPER_ASR_START_PERIOD:-120s}
     logging:
       driver: json-file
       options:

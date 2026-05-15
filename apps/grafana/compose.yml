@@ -10,8 +10,7 @@ networks:
 
 services:
   grafana:
-    # TODO: Image-Tag spaeter pinnen / via GRAFANA_IMAGE aus .env steuern.
-    image: grafana/grafana:11.4.0
+    image: ${GRAFANA_IMAGE:-grafana/grafana:11.4.0}
     container_name: filehub-grafana
     restart: unless-stopped
     # Lauf-User: Host-PUID/PGID, damit Bind-Mount ../../data/grafana
