@@ -1,7 +1,8 @@
 # Validation: modulare App-Struktur
 
-Letztes Update: 2026-05-15 nach zweiter Stabilisierungs-Serie
-(958e612..HEAD: registry-audit, homepage-apply, caddy-Helper-Haertung).
+Letztes Update: 2026-05-15 nach Runtime-Audit-Serie
+(e3ccbe7..HEAD). Vorherige Etappen: registry-audit (958e612),
+homepage-apply (4647b5e), caddy-Haertung (4958a03).
 
 ## docker compose config
 
@@ -124,6 +125,30 @@ Zusaetzlich: id-Regex `^[a-z0-9-]+$`, Port-Uniqueness, Registry-Pfade.
 | `--restart` (nicht im CI-Lauf) | docker restart filehub-homepage |
 
 Keine interaktive Abfrage. Diff-Vorschau (head -40) wird angezeigt.
+
+## Runtime-Audit-Test
+
+| Aufruf | Ergebnis |
+|---|---|
+| `just runtime-audit` | 7 Apps, 7 Compose, 16 Container, 25 OK, 11 INFO, 1 WARN, 0 FAIL, exit 0 |
+| `just runtime-audit-quiet` | nur WARN-Zeilen + Summary, exit 0 |
+| `just runtime-audit-strict` | exit 1 wegen 1 WARN |
+| `just runtime-audit --json` | strukturierte Ausgabe `summary` + `findings` |
+
+Findings im aktuellen Stack:
+- **OK**: alle `apps/<id>/compose.yml` validieren, Registry-Ports passen.
+- **INFO** (11x): 7 App-Container + 4 Authentik-Container haben `container_name`
+  auch in Root-Compose -- erwartete Kompatibilitaet (kein Parallelstart).
+- **WARN** (1x): `AUTHENTIK_ENABLED=false` in `.env.example`, aber Authentik-Container
+  laufen aus Phase-1-Bootstrap. Bewusst toleriert.
+- **FAIL** (0): keine `container_name`-Konflikte zwischen modularen Compose,
+  keine 0.0.0.0-Bindings, keine unhealthy Container, keine Port-Mismatches.
+
+## Audit-Report-Integration
+
+`just audit-report` ruft jetzt am Ende `registry-audit --quiet` und
+`runtime-audit --quiet` auf. Wenn Docker nicht erreichbar ist, wird der
+runtime-Teil mit einer WARN-Zeile uebersprungen statt das Skript abzubrechen.
 
 ## Caddy-Helper-Haertung (Roundtrip)
 
