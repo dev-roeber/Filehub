@@ -524,8 +524,16 @@ if [[ "$MODE" == "--print-commands" ]]; then
   echo "# 1) Backup"
   echo "just backup-app $APP"
   echo
-  echo "# 2) Root-Service stoppen (kein down, kein -v)"
-  if [[ -n "$ROOT_MATCH_FILE" && -n "$ROOT_SERVICE" ]]; then
+  echo "# 2) Root-Service(s) stoppen (kein down, kein -v)"
+  if [[ "$APP" == "paperless" ]]; then
+    PAPERLESS_STOP_ORDER=(paperless-webserver paperless-tika paperless-gotenberg paperless-redis paperless-db)
+    for svc in "${PAPERLESS_STOP_ORDER[@]}"; do
+      echo "docker compose -f compose.yml -f compose.paperless.yml stop $svc"
+    done
+    for svc in "${PAPERLESS_STOP_ORDER[@]}"; do
+      echo "docker compose -f compose.yml -f compose.paperless.yml rm -f $svc"
+    done
+  elif [[ -n "$ROOT_MATCH_FILE" && -n "$ROOT_SERVICE" ]]; then
     echo "docker compose -f compose.yml -f $ROOT_MATCH_FILE stop $ROOT_SERVICE"
     echo "docker compose -f compose.yml -f $ROOT_MATCH_FILE rm -f $ROOT_SERVICE"
   elif [[ -n "$ROOT_MATCH_FILE" ]]; then
@@ -537,19 +545,28 @@ if [[ "$MODE" == "--print-commands" ]]; then
     echo "# Cutover-Stop manuell verifizieren (evtl. ist Container nicht aus Root-Compose)"
   fi
   echo
-  echo "# 3) App-Compose starten"
+  echo "# 3) App-Compose starten (depends_on regelt Reihenfolge)"
   echo "just app-up $APP"
   echo
   echo "# 4) Healthcheck"
-  echo "just app-health $APP"
+  if [[ "$APP" == "paperless" ]]; then
+    echo "# Multi-Container-Check: 5 Container running + webserver http 200/302"
+    echo "# MIGRATE_HEALTH_TIMEOUT_SECONDS=300 MIGRATE_HEALTH_INTERVAL_SECONDS=10"
+  else
+    echo "just app-health $APP"
+  fi
   echo
   echo "# 5) Drift-Audit"
   echo "just runtime-audit"
 
   if [[ "$APP" == "paperless" ]]; then
     echo
-    echo "# Hinweis paperless: Helper-Container (db/redis/tika/gotenberg) erfordern"
-    echo "# laengeres Wartungsfenster. Reihenfolge der Stops/Starts beachten."
+    echo "# Paperless-Sonderhinweise:"
+    echo "# - 5 Container: db, redis, tika, gotenberg, webserver"
+    echo "# - Stop-Reihenfolge: webserver -> tika -> gotenberg -> redis -> db"
+    echo "# - Start-Reihenfolge (Rollback): db -> redis -> tika -> gotenberg -> webserver"
+    echo "# - Wartungsfenster fuer Postgres-Restart + Index-Rebuild einplanen"
+    echo "# - Execute nur mit: --execute --yes-i-am-sure --allow-paperless"
   fi
   exit 0
 fi
@@ -561,7 +578,12 @@ if [[ "$MODE" == "--rollback-plan" ]]; then
   echo "# Rollback-Plan fuer $APP (NICHT ausgefuehrt)"
   echo
   echo "just app-down $APP"
-  if [[ -n "$ROOT_MATCH_FILE" && -n "$ROOT_SERVICE" ]]; then
+  if [[ "$APP" == "paperless" ]]; then
+    PAPERLESS_START_ORDER=(paperless-db paperless-redis paperless-tika paperless-gotenberg paperless-webserver)
+    for svc in "${PAPERLESS_START_ORDER[@]}"; do
+      echo "docker compose -f compose.yml -f compose.paperless.yml up -d $svc"
+    done
+  elif [[ -n "$ROOT_MATCH_FILE" && -n "$ROOT_SERVICE" ]]; then
     echo "docker compose -f compose.yml -f $ROOT_MATCH_FILE up -d $ROOT_SERVICE"
   elif [[ -n "$ROOT_MATCH_FILE" ]]; then
     echo "# TODO: Service-Name in $ROOT_MATCH_FILE manuell ermitteln (container_name=$PRIMARY)"
@@ -793,17 +815,35 @@ if [[ "$MODE" == "--execute" ]]; then
   fi
   echo
 
-  # ---------------- Stop Root-Service ----------------
+  # ---------------- Stop Root-Service(s) ----------------
   echo "-- Stop Root-Service --"
   ROOT_CMD=(docker compose -f compose.yml -f "$ROOT_MATCH_FILE")
-  echo ">> ${ROOT_CMD[*]} stop $ROOT_SERVICE"
-  if ! "${ROOT_CMD[@]}" stop "$ROOT_SERVICE"; then
-    echo "FAIL stop fehlgeschlagen" >&2
-    exit 2
-  fi
-  echo ">> ${ROOT_CMD[*]} rm -f $ROOT_SERVICE  (keine Volumes!)"
-  if ! "${ROOT_CMD[@]}" rm -f "$ROOT_SERVICE"; then
-    echo "WARN rm -f fehlgeschlagen - versuche trotzdem App-Start"
+
+  # Paperless-Sonderfall: 5 Services in Reihenfolge
+  if [[ "$APP" == "paperless" ]]; then
+    # Stop in dieser Reihenfolge (Webserver zuerst, DB zuletzt):
+    PAPERLESS_STOP_ORDER=(paperless-webserver paperless-tika paperless-gotenberg paperless-redis paperless-db)
+    for svc in "${PAPERLESS_STOP_ORDER[@]}"; do
+      echo ">> ${ROOT_CMD[*]} stop $svc"
+      if ! "${ROOT_CMD[@]}" stop "$svc"; then
+        echo "FAIL stop $svc fehlgeschlagen" >&2
+        exit 2
+      fi
+    done
+    for svc in "${PAPERLESS_STOP_ORDER[@]}"; do
+      echo ">> ${ROOT_CMD[*]} rm -f $svc  (keine Volumes!)"
+      "${ROOT_CMD[@]}" rm -f "$svc" || echo "WARN rm -f $svc fehlgeschlagen"
+    done
+  else
+    echo ">> ${ROOT_CMD[*]} stop $ROOT_SERVICE"
+    if ! "${ROOT_CMD[@]}" stop "$ROOT_SERVICE"; then
+      echo "FAIL stop fehlgeschlagen" >&2
+      exit 2
+    fi
+    echo ">> ${ROOT_CMD[*]} rm -f $ROOT_SERVICE  (keine Volumes!)"
+    if ! "${ROOT_CMD[@]}" rm -f "$ROOT_SERVICE"; then
+      echo "WARN rm -f fehlgeschlagen - versuche trotzdem App-Start"
+    fi
   fi
   echo
 
@@ -821,23 +861,77 @@ if [[ "$MODE" == "--execute" ]]; then
   # ---------------- Healthcheck-Loop ----------------
   HEALTH_OK=0
   if [[ $APP_UP_FAIL -eq 0 ]]; then
-    HC_TIMEOUT="${MIGRATE_HEALTH_TIMEOUT_SECONDS:-60}"
-    HC_INTERVAL="${MIGRATE_HEALTH_INTERVAL_SECONDS:-5}"
+    # Paperless: laengere Defaults + Multi-Container-Check
+    if [[ "$APP" == "paperless" ]]; then
+      HC_TIMEOUT="${MIGRATE_HEALTH_TIMEOUT_SECONDS:-300}"
+      HC_INTERVAL="${MIGRATE_HEALTH_INTERVAL_SECONDS:-10}"
+    else
+      HC_TIMEOUT="${MIGRATE_HEALTH_TIMEOUT_SECONDS:-60}"
+      HC_INTERVAL="${MIGRATE_HEALTH_INTERVAL_SECONDS:-5}"
+    fi
     HC_MAX_TRIES=$(( HC_TIMEOUT / HC_INTERVAL ))
     (( HC_MAX_TRIES < 1 )) && HC_MAX_TRIES=1
     echo
     echo "-- Healthcheck-Loop (bis ${HC_TIMEOUT}s, alle ${HC_INTERVAL}s, ${HC_MAX_TRIES} Versuche) --"
+
+    paperless_multi_check() {
+      # Alle 5 Container muessen running sein, webserver zusaetzlich http 200/302.
+      local containers=(filehub-paperless-db filehub-paperless-redis filehub-paperless-tika filehub-paperless-gotenberg filehub-paperless-webserver)
+      local all_ok=1
+      for c in "${containers[@]}"; do
+        if ! docker inspect "$c" >/dev/null 2>&1; then
+          all_ok=0
+          echo "    $c missing"
+          continue
+        fi
+        local state health
+        state="$(docker inspect --format '{{.State.Status}}' "$c" 2>/dev/null)"
+        health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$c" 2>/dev/null)"
+        if [[ "$state" != "running" ]]; then
+          all_ok=0
+          echo "    $c state=$state (erwartet running)"
+          continue
+        fi
+        if [[ "$health" != "healthy" && "$health" != "none" ]]; then
+          all_ok=0
+          echo "    $c health=$health (erwartet healthy)"
+          continue
+        fi
+      done
+      # HTTP-Probe webserver
+      local port="${PAPERLESS_PORT:-8000}"
+      local http_code
+      http_code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:${port}/" 2>/dev/null || echo 000)"
+      case "$http_code" in
+        200|302)
+          ;;
+        *)
+          all_ok=0
+          echo "    webserver http=$http_code (erwartet 200/302)"
+          ;;
+      esac
+      return $((1 - all_ok))
+    }
+
     for ((i=1; i<=HC_MAX_TRIES; i++)); do
-      if just app-health "$APP" >/dev/null 2>&1; then
-        HEALTH_OK=1
-        echo "OK   app-health bestanden (Versuch $i)"
-        break
+      if [[ "$APP" == "paperless" ]]; then
+        if paperless_multi_check; then
+          HEALTH_OK=1
+          echo "OK   paperless multi-check bestanden (Versuch $i)"
+          break
+        fi
+      else
+        if just app-health "$APP" >/dev/null 2>&1; then
+          HEALTH_OK=1
+          echo "OK   app-health bestanden (Versuch $i)"
+          break
+        fi
       fi
       echo "INFO Versuch $i/$HC_MAX_TRIES: noch nicht healthy, warte ${HC_INTERVAL}s"
       sleep "$HC_INTERVAL"
     done
     if [[ $HEALTH_OK -ne 1 ]]; then
-      echo "FAIL app-health nicht bestanden innerhalb ${HC_TIMEOUT}s"
+      echo "FAIL Healthcheck nicht bestanden innerhalb ${HC_TIMEOUT}s"
     fi
   fi
 
@@ -851,17 +945,37 @@ if [[ "$MODE" == "--execute" ]]; then
     if ! just app-down "$APP"; then
       echo "WARN just app-down $APP schlug fehl - fortsetzen"
     fi
-    echo ">> ${ROOT_CMD[*]} up -d $ROOT_SERVICE"
-    if ! "${ROOT_CMD[@]}" up -d "$ROOT_SERVICE"; then
-      echo "FAIL Rollback up -d fehlgeschlagen"
-      ROLLBACK_FAIL=1
-    fi
-    echo ">> Rollback-Healthcheck"
-    sleep 5
-    if just app-health "$APP" >/dev/null 2>&1; then
-      echo "OK   App wieder healthy aus Root-Compose"
+    if [[ "$APP" == "paperless" ]]; then
+      # Reverse-Order: db zuerst, webserver zuletzt
+      PAPERLESS_START_ORDER=(paperless-db paperless-redis paperless-tika paperless-gotenberg paperless-webserver)
+      for svc in "${PAPERLESS_START_ORDER[@]}"; do
+        echo ">> ${ROOT_CMD[*]} up -d $svc"
+        if ! "${ROOT_CMD[@]}" up -d "$svc"; then
+          echo "FAIL Rollback up -d $svc fehlgeschlagen"
+          ROLLBACK_FAIL=1
+        fi
+      done
+      echo ">> Rollback-Healthcheck (paperless multi-check, max 60s)"
+      for ((j=1; j<=12; j++)); do
+        if paperless_multi_check >/dev/null 2>&1; then
+          echo "OK   paperless wieder healthy aus Root-Compose (Versuch $j)"
+          break
+        fi
+        sleep 5
+      done
     else
-      echo "WARN App nach Rollback nicht sofort healthy - manuell verifizieren"
+      echo ">> ${ROOT_CMD[*]} up -d $ROOT_SERVICE"
+      if ! "${ROOT_CMD[@]}" up -d "$ROOT_SERVICE"; then
+        echo "FAIL Rollback up -d fehlgeschlagen"
+        ROLLBACK_FAIL=1
+      fi
+      echo ">> Rollback-Healthcheck"
+      sleep 5
+      if just app-health "$APP" >/dev/null 2>&1; then
+        echo "OK   App wieder healthy aus Root-Compose"
+      else
+        echo "WARN App nach Rollback nicht sofort healthy - manuell verifizieren"
+      fi
     fi
     echo ">> just runtime-audit"
     scripts/runtime-audit.sh --quiet || true
