@@ -306,6 +306,29 @@ Validierung nach Cutover:
 
 Stand: homepage + filebrowser + stirling-pdf + paperless migriert (source=app), 3 Apps source=root.
 
+### Live-Cutover convertx (2026-05-15)
+
+Ausgefuehrt: `just migrate-execute-convertx`, exit 0, **kein Rollback** noetig.
+
+Eckdaten:
+- Reihenfolge-Pruefung: 4 Vorgaenger source=app OK.
+- Preflight 10/10 OK.
+- Backup: `backups/20260515-132715/convertx-app.tar.gz`.
+- Stop+rm `filehub-convertx` aus `compose.convertx.yml` (Volume erhalten).
+- Healthcheck-Loop: bestanden bei Versuch 2 (~10s).
+- Post-Audit: 0 FAIL.
+
+Validierung nach Cutover:
+| Check | Ergebnis |
+|---|---|
+| `just app-health convertx` | state=healthy, http=302 |
+| HTTP-Probe 127.0.0.1:3000/ | 302 |
+| `just migration-status` (convertx) | source=app, healthy |
+| `just runtime-audit` | 0 FAIL |
+| `just backup-age convertx` | OK 0h 0min |
+
+Stand: homepage + filebrowser + stirling-pdf + paperless + convertx migriert (source=app), 2 Apps source=root.
+
 ### Phase C abgeschlossen
 
 | App | Status | Healthcheck-Loop |
