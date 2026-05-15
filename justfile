@@ -154,6 +154,9 @@ runtime-audit-strict:
 migration-status:
     ./scripts/migration-status.sh
 
+gateway-migration-status:
+    ./scripts/gateway-migration-status.sh
+
 migrate-dry-run app:
     ./scripts/migrate-app.sh {{app}} --dry-run
 
