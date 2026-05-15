@@ -326,6 +326,28 @@ auth-restart:
 auth-logs:
     docker compose --env-file .env -f infra/authentik/compose.yml logs -f --tail=200
 
+# --- Monitoring (Prometheus + Node-Exporter + cAdvisor) ---
+
+monitoring-up:
+    docker compose --env-file .env -f infra/monitoring/compose.yml up -d
+
+monitoring-down:
+    docker compose --env-file .env -f infra/monitoring/compose.yml stop
+    docker compose --env-file .env -f infra/monitoring/compose.yml rm -f
+
+monitoring-restart:
+    docker compose --env-file .env -f infra/monitoring/compose.yml restart
+
+monitoring-logs:
+    docker compose --env-file .env -f infra/monitoring/compose.yml logs -f --tail=200
+
+monitoring-status:
+    @docker compose --env-file .env -f infra/monitoring/compose.yml ps
+    @echo "---"
+    @curl -fsS -o /dev/null -w 'prometheus  /-/healthy: %{http_code}\n' --max-time 5 http://127.0.0.1:9090/-/healthy || true
+    @curl -fsS -o /dev/null -w 'node-exp    /metrics:   %{http_code}\n' --max-time 5 http://127.0.0.1:9100/metrics || true
+    @curl -fsS -o /dev/null -w 'cadvisor    /healthz:   %{http_code}\n' --max-time 5 http://127.0.0.1:9080/healthz || true
+
 # --- Gateway (Caddy) ---
 # Konvention: <komponente>-<aktion>. Bestehende up-auth/down-auth/logs-auth/
 # restart-auth-Targets weiter oben bleiben als Aliase erhalten und arbeiten

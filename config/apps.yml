@@ -147,3 +147,9 @@ infra:
     name: Restic Backup
     compose: compose.backup.yml
     description: Backup-Dispatcher (systemd-Timer)
+
+  - id: monitoring
+    name: Monitoring (Prometheus + Node-Exporter + cAdvisor)
+    compose: infra/monitoring/compose.yml
+    port: 9090
+    description: Host- und Container-Metriken, scrape alle 15s, Visualisierung in Grafana
