@@ -175,6 +175,9 @@ migrate-execute-filebrowser:
 migrate-execute-stirling-pdf:
     ./scripts/migrate-app.sh stirling-pdf --execute --yes-i-am-sure
 
+migrate-execute-convertx:
+    ./scripts/migrate-app.sh convertx --execute --yes-i-am-sure
+
 # Paperless Multi-Container-Cutover. Erfordert Wartungsfenster und alle
 # erweiterten Preflight-Checks. Nicht idempotent. Kein Auto-Rollback ohne
 # DB-Snapshot.
