@@ -321,4 +321,4 @@ caddy-disable app:
     ./scripts/caddy-disable.sh {{app}}
 
 caddy-list:
-    @ls -1 infra/caddy/snippets/enabled/ 2>/dev/null | grep -v '^\.gitkeep$' || echo "(keine aktivierten Snippets)"
+    @./scripts/caddy-list.sh

@@ -89,6 +89,12 @@ if [[ ! -f "${SRC}" ]]; then
     exit 3
 fi
 
+# Quell-Snippet darf nicht leer sein - sonst waere das Caddyfile-Include nutzlos.
+if [[ ! -s "${SRC}" ]]; then
+    echo "ERROR: Quell-Snippet '${SRC}' ist leer (size=0)." >&2
+    exit 3
+fi
+
 mkdir -p "${ENABLED_DIR}"
 DST="${ENABLED_DIR}/${APP}.caddy"
 
@@ -98,10 +104,21 @@ if [[ -e "${DST}" && "${FORCE}" -ne 1 ]]; then
     exit 4
 fi
 
+# Bei --force: wenn Ziel byteweise identisch zu Quelle ist, ist nichts zu tun.
+if [[ -e "${DST}" && "${FORCE}" -eq 1 ]]; then
+    if cmp -s "${SRC}" "${DST}"; then
+        echo "OK: ${DST} ist schon aktuell (identisch zu ${SRC}) - nichts zu tun."
+        exit 0
+    fi
+fi
+
 cp "${SRC}" "${DST}"
 echo "OK: ${SRC} -> ${DST} (variant=${VARIANT})"
 
 # Optional: Caddy-Konfig validieren, ohne reload zu erzwingen.
+# Bewusst KEIN Auto-Rollback: falls validate fehlschlaegt, bleibt die Datei
+# liegen und wird nur geloggt. Der Operator entscheidet selbst, ob er
+# caddy-disable.sh aufruft oder das Snippet fixt.
 GATEWAY_CFG="${REPO_ROOT}/config/caddy/filehub-gateway.Caddyfile"
 if [[ -f "${GATEWAY_CFG}" ]]; then
     if command -v docker >/dev/null 2>&1 \
@@ -112,6 +129,7 @@ if [[ -f "${GATEWAY_CFG}" ]]; then
             echo "OK: caddy validate erfolgreich (kein reload ausgefuehrt)."
         else
             echo "WARN: caddy validate meldet Fehler (siehe oben)." >&2
+            echo "WARN: ${DST} bleibt liegen - bei Bedarf manuell zurueckrollen via scripts/caddy-disable.sh ${APP}." >&2
         fi
     else
         echo "WARN: Container 'filehub-gateway' nicht erreichbar - Validierung uebersprungen."
