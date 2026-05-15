@@ -353,8 +353,13 @@ done
 # Container, die laufen aber zu keiner App-Compose gehoeren
 for name in "${RUNNING_FILEHUB[@]}"; do
   if [[ -z "${CONTAINER_OWNER[$name]:-}" ]]; then
-    if is_authentik "$name" || [[ "$name" == filehub-gateway ]]; then
-      # Authentik/Gateway gehoeren zu Infra, eigene Behandlung
+    case "$name" in
+      filehub-gateway|filehub-prometheus|filehub-node-exporter|filehub-cadvisor)
+        # Infra-Container, eigene Behandlung
+        continue ;;
+    esac
+    if is_authentik "$name"; then
+      # Authentik gehoert zu Infra, eigene Behandlung
       continue
     fi
     emit WARN container "$name laeuft, ist aber in keiner apps/<id>/compose.yml registriert"
