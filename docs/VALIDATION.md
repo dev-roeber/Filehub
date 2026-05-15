@@ -253,6 +253,31 @@ Validierung nach Cutover:
 Stand: homepage + filebrowser migriert (source=app), 5 Apps source=root.
 Root-Compose-Datei `compose.extensions.yml` bleibt als Rollback-Reserve im Repo.
 
+### Live-Cutover stirling-pdf (2026-05-15)
+
+Ausgefuehrt: `just migrate-execute-stirling-pdf`, exit 0, **kein Rollback** noetig.
+
+Ablauf-Eckdaten:
+- Reihenfolge-Pruefung: homepage + filebrowser source=app OK.
+- Preflight: 10 von 10 OK.
+- Backup-Artefakt: `backups/20260515-123520/stirling-pdf-app.tar.gz`.
+- Stop+rm filehub-stirling-pdf aus `compose.extensions.yml` -- Volume blieb erhalten.
+- App-Compose-Start: 1 Container erstellt + gestartet.
+- Healthcheck-Loop: bestanden bei Versuch 6 (~25s, Stirling startet etwas langsamer).
+- Post-Audit: 25 OK, 11 INFO, 1 WARN (Authentik), 0 FAIL.
+
+Validierung nach Cutover:
+| Check | Ergebnis |
+|---|---|
+| `just app-health stirling-pdf` | state=healthy, http=401 (Basic-Auth, Stirling-Default) |
+| `just migration-status` (stirling-pdf) | source=app, run=yes, health=healthy |
+| `just apps-status` | alle 7 Apps healthy |
+| `just runtime-audit` | 0 FAIL |
+| `just backup-age stirling-pdf` | OK 0h 0min |
+| Andere Apps source | bleiben source=root (paperless, convertx, uptime-kuma, dozzle) |
+
+Stand: homepage + filebrowser + stirling-pdf migriert (source=app), 4 Apps source=root.
+
 ### Migrationsreihenfolge im Code
 
 `scripts/migrate-app.sh` haelt `MIGRATION_ORDER`:
