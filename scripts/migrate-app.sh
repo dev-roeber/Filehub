@@ -104,22 +104,18 @@ order_index_of() {
 # Liefert source=app|root|... fuer eine App via migration-status JSON
 get_source_for_app() {
   local app="$1"
-  local json
-  json="$(scripts/migration-status.sh --json 2>/dev/null || true)"
-  [[ -z "$json" ]] && return 1
-  python3 - "$app" <<'PY' <<<"$json" 2>/dev/null
+  scripts/migration-status.sh --json 2>/dev/null | python3 -c "
 import json, sys
-app = sys.argv[1]
-data_text = sys.stdin.read()
+target = '$app'
 try:
-    data = json.loads(data_text)
+    data = json.load(sys.stdin)
 except Exception:
     sys.exit(1)
-for a in data.get("apps", []):
-    if a.get("app") == app:
-        print(a.get("source",""))
+for a in data.get('apps', []):
+    if a.get('app') == target:
+        print(a.get('source',''))
         break
-PY
+" 2>/dev/null
 }
 
 if [[ -z "$APP" ]]; then
@@ -584,9 +580,9 @@ fi
 # ---------------------------------------------------------------------------
 if [[ "$MODE" == "--execute" ]]; then
 
-  # Allow-Liste: aktuell homepage (erledigt). Weitere Apps werden in
-  # spaeteren Phasen einzeln freigeschaltet.
-  EXECUTE_ALLOWED_APPS=("homepage")
+  # Allow-Liste: homepage (erledigt) + filebrowser (Phase B).
+  # Weitere Apps werden in spaeteren Phasen einzeln freigeschaltet.
+  EXECUTE_ALLOWED_APPS=("homepage" "filebrowser")
   allowed=0
   for a in "${EXECUTE_ALLOWED_APPS[@]}"; do
     [[ "$a" == "$APP" ]] && allowed=1
