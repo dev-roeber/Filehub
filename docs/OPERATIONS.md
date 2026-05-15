@@ -202,6 +202,8 @@ Volle Details siehe `docs/MODULAR_RUNTIME_MIGRATION.md`.
   Speech-to-Text. Image
   `onerahmet/openai-whisper-asr-webservice:v1.7.0` (CPU). Hoher
   RAM-Bedarf; Modellcache bewusst NICHT im Backup.
+- Grafana: Passwortwechsel via grafana-cli, siehe docs/APPS.md.
+- Whisper-ASR: GPU-Variante skizziert in docs/APPS.md, nicht aktiv.
 
 ## Verweise
 

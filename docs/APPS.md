@@ -103,6 +103,23 @@ Initialisierung wirksam - spaetere Aenderung ueber Grafana-UI.
 - Health: `just app-health grafana`
 - Provisioning: optional unter `config/grafana/provisioning/`.
 
+#### Operative Hinweise
+
+- **Host-PUID-Bindung (Restore auf anderem Host)**: Das Grafana-User-Mapping
+  ist host-spezifisch (`PUID`/`PGID`). Bei Restore auf einem anderen Host mit
+  abweichender UID/GID muessen die Werte in `.env` vor dem Start an die neue
+  Host-Identitaet angepasst werden, sonst entstehen Permission-Konflikte auf
+  `data/grafana`. Alternativ nach der Extraction ein `chown` auf das Daten-
+  verzeichnis ausfuehren.
+- **Admin-Passwort spaeter aendern**: `FILEHUB_ADMIN_PASSWORD` wirkt nur bei
+  der Erst-Initialisierung. Sobald `data/grafana/grafana.db` existiert,
+  ignoriert Grafana den ENV-Wert. Passwortwechsel danach entweder ueber die
+  Grafana-UI oder via `grafana-cli` im laufenden Container:
+
+  ```bash
+  docker exec filehub-grafana grafana-cli admin reset-admin-password <neues-passwort>
+  ```
+
 ### whisper-asr -- Whisper ASR Webservice
 
 Speech-to-Text-API (OpenAI Whisper, CPU-Variante). Hoher RAM-Bedarf,
@@ -114,6 +131,33 @@ Modelldownload beim ersten Start (mehrere GB). `default_enabled=false`
 - Start: `just app-up whisper-asr`
 - Health: `just app-health whisper-asr`
 - Modellauswahl: `WHISPER_ASR_MODEL=tiny|base|small|medium|large` in `.env`.
+
+#### Operative Hinweise
+
+- **Modelldownload nach Restore**: Der Modellcache `data/whisper-asr/cache`
+  ist bewusst nicht Teil des Backups. Beim Restore auf einem neuen Host
+  muss der erste Start mit Netzzugriff zum Modell-Repo erfolgen, damit das
+  konfigurierte Modell nachgeladen werden kann. Erst-Start kann je nach
+  Modellgroesse mehrere Minuten dauern; `start_period` ggf. anpassen.
+- **GPU-Variante (nicht aktiv, nur Skizze)**: Falls GPU-Beschleunigung
+  gewuenscht ist, kann ein GPU-Image-Tag in `.env` gesetzt und der Compose-
+  Service um eine NVIDIA-Device-Reservation erweitert werden. Diese
+  Aenderung ist hier **nur als Doku-Snippet** dokumentiert und in
+  `compose.yml` **nicht** aktiviert:
+
+  ```yaml
+  # .env
+  WHISPER_ASR_IMAGE=onerahmet/openai-whisper-asr-webservice:v1.7.0-gpu
+
+  # compose.yml (Auszug, Service whisper-asr)
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: 1
+            capabilities: [gpu]
+  ```
 
 ## Backup und Restore pro App
 

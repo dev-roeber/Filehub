@@ -24,6 +24,13 @@ kompromittiertes Passwort betrifft alle Apps gleichzeitig. Mittelfristig
 sollte pro App ein separates Passwort vergeben werden, sobald die jeweilige
 App das sauber unterstuetzt. Migrationsschritte stehen in den App-READMEs.
 
+Hinweis Grafana: `FILEHUB_ADMIN_PASSWORD` aus `.env` wirkt fuer Grafana
+ausschliesslich als Init-Wert beim ersten Container-Start. Sobald
+`data/grafana/grafana.db` existiert, ignoriert Grafana den ENV-Wert -
+spaetere Aenderungen an `FILEHUB_ADMIN_PASSWORD` aendern das laufende
+Grafana-Admin-Passwort **nicht**. Wechsel via Grafana-UI oder
+`grafana-cli` (siehe docs/APPS.md).
+
 ## Netzwerk-Bindings
 
 - Alle App-Ports binden lokal an `127.0.0.1`.

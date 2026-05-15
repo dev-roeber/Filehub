@@ -66,10 +66,19 @@ Plattform anzufassen.
 - **grafana**: `data/grafana` + `config/grafana/provisioning` werden
   gesichert. Grafana laeuft als Host-PUID, daher keine Permission-
   Konflikte beim Restore.
+  - **Restore-Hinweis**: `PUID`/`PGID` in `.env` muessen zur UID/GID des
+    Ziel-Hosts passen. Falls der Restore auf einem Host mit anderem UID
+    erfolgt, vor dem Start entweder die `.env`-Werte anpassen ODER nach
+    der Extraction `chown -R <neue-UID>:<neue-GID> data/grafana`
+    ausfuehren, sonst entstehen Permission-Konflikte auf der SQLite-DB.
 - **whisper-asr**: nur `data/whisper-asr/work` und Config-Dateien
   sind im `backup.include`. Der Modellcache
   (`data/whisper-asr/cache`, mehrere GB) ist **bewusst ausgeschlossen**
   - die Modelle sind reproduzierbar nachladbar.
+  - **Restore-Hinweis**: Modelle werden beim ersten Start nachgeladen
+    (Netzzugriff zum Modell-Repo noetig). Der Erst-Start kann je nach
+    Modellgroesse mehrere Minuten dauern; `start_period` im Healthcheck
+    gegebenenfalls an die Modellgroesse anpassen.
 
 ## Verweise
 
