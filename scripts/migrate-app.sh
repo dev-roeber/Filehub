@@ -602,9 +602,10 @@ fi
 # ---------------------------------------------------------------------------
 if [[ "$MODE" == "--execute" ]]; then
 
-  # Allow-Liste: homepage (A), filebrowser (B), stirling-pdf (C-1), convertx (D).
+  # Allow-Liste: homepage (A), filebrowser (B), stirling-pdf (C-1),
+  # convertx (D), uptime-kuma (E).
   # paperless (C-2) ist NUR ueber --allow-paperless erreichbar.
-  EXECUTE_ALLOWED_APPS=("homepage" "filebrowser" "stirling-pdf" "convertx")
+  EXECUTE_ALLOWED_APPS=("homepage" "filebrowser" "stirling-pdf" "convertx" "uptime-kuma")
   # Apps, die zusaetzlich --allow-paperless erfordern (Multi-Container-Sonderfall)
   if [[ "$APP" == "paperless" && $ALLOW_PAPERLESS -eq 1 ]]; then
     EXECUTE_ALLOWED_APPS+=("paperless")
@@ -861,14 +862,21 @@ if [[ "$MODE" == "--execute" ]]; then
   # ---------------- Healthcheck-Loop ----------------
   HEALTH_OK=0
   if [[ $APP_UP_FAIL -eq 0 ]]; then
-    # Paperless: laengere Defaults + Multi-Container-Check
-    if [[ "$APP" == "paperless" ]]; then
-      HC_TIMEOUT="${MIGRATE_HEALTH_TIMEOUT_SECONDS:-300}"
-      HC_INTERVAL="${MIGRATE_HEALTH_INTERVAL_SECONDS:-10}"
-    else
-      HC_TIMEOUT="${MIGRATE_HEALTH_TIMEOUT_SECONDS:-60}"
-      HC_INTERVAL="${MIGRATE_HEALTH_INTERVAL_SECONDS:-5}"
-    fi
+    # App-spezifische Healthcheck-Defaults
+    case "$APP" in
+      paperless)
+        HC_TIMEOUT="${MIGRATE_HEALTH_TIMEOUT_SECONDS:-300}"
+        HC_INTERVAL="${MIGRATE_HEALTH_INTERVAL_SECONDS:-10}"
+        ;;
+      uptime-kuma)
+        HC_TIMEOUT="${MIGRATE_HEALTH_TIMEOUT_SECONDS:-120}"
+        HC_INTERVAL="${MIGRATE_HEALTH_INTERVAL_SECONDS:-5}"
+        ;;
+      *)
+        HC_TIMEOUT="${MIGRATE_HEALTH_TIMEOUT_SECONDS:-60}"
+        HC_INTERVAL="${MIGRATE_HEALTH_INTERVAL_SECONDS:-5}"
+        ;;
+    esac
     HC_MAX_TRIES=$(( HC_TIMEOUT / HC_INTERVAL ))
     (( HC_MAX_TRIES < 1 )) && HC_MAX_TRIES=1
     echo
