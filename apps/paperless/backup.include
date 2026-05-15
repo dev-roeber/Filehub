@@ -1,0 +1,9 @@
+# Paperless backup include.
+# DB-Dump via pg_dump (filehub-paperless-db) wird dynamisch in den
+# backup_dir geschrieben (scripts/backup.sh).
+data/paperless/data
+data/paperless/media
+data/paperless/export
+data/paperless/consume
+apps/paperless/compose.yml
+apps/paperless/.env.example

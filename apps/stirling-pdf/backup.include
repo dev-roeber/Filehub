@@ -1,0 +1,7 @@
+data/stirling/trainingData
+data/stirling/extraConfigs
+data/stirling/customFiles
+data/stirling/pipeline
+# Bewusst NICHT enthalten: data/stirling/work, data/stirling/logs (temporaer/log)
+apps/stirling-pdf/compose.yml
+apps/stirling-pdf/.env.example

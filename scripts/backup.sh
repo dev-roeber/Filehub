@@ -26,6 +26,64 @@ chmod 700 "$backup_dir"
 
 echo "Erstelle lokales Backup unter $backup_dir"
 
+# --- Modularer App-Backup-Modus -----------------------------------------------
+# Wenn FILEHUB_BACKUP_ONLY_APP=<id> gesetzt ist, sichert dieser Lauf NUR die
+# eine App: liest apps/<id>/backup.include + erzeugt benoetigte DB-Dumps.
+# Restic ueberspringt dann den globalen Backup-Lauf (eingeschraenkte paths).
+
+backup_app_module() {
+  local app="$1"
+  local include="apps/$app/backup.include"
+  if [[ ! -f "$include" ]]; then
+    echo "ERROR: $include fehlt." >&2
+    return 1
+  fi
+  echo "App-Modus: sichere nur '$app' (aus $include)."
+
+  # App-spezifische DB-Dumps.
+  case "$app" in
+    paperless)
+      if docker inspect filehub-paperless-db >/dev/null 2>&1; then
+        docker exec filehub-paperless-db pg_dump -U "$PAPERLESS_DBUSER" "$PAPERLESS_DBNAME" \
+          > "$backup_dir/paperless-postgres.sql" || \
+          { echo "WARN: paperless pg_dump fehlgeschlagen."; rm -f "$backup_dir/paperless-postgres.sql"; }
+      fi
+      ;;
+    authentik)
+      if docker inspect filehub-authentik-db >/dev/null 2>&1; then
+        docker exec filehub-authentik-db pg_dump -U authentik authentik \
+          > "$backup_dir/authentik-postgres.sql" || \
+          { echo "WARN: authentik pg_dump fehlgeschlagen."; rm -f "$backup_dir/authentik-postgres.sql"; }
+      fi
+      if docker inspect filehub-authentik-redis >/dev/null 2>&1; then
+        docker exec filehub-authentik-redis redis-cli BGSAVE >/dev/null 2>&1 || true
+        sleep 2
+        docker exec filehub-authentik-redis cat /data/dump.rdb \
+          > "$backup_dir/authentik-redis-dump.rdb" 2>/dev/null || \
+          { echo "WARN: authentik redis dump fehlgeschlagen."; rm -f "$backup_dir/authentik-redis-dump.rdb"; }
+      fi
+      ;;
+  esac
+
+  # Pfadliste aus backup.include lesen (Kommentare/Leerzeilen filtern).
+  mapfile -t paths < <(grep -vE '^[[:space:]]*(#|$)' "$include")
+  local existing=()
+  for p in "${paths[@]}"; do
+    [[ -e "$p" ]] && existing+=("$p") || echo "  skip (nicht vorhanden): $p"
+  done
+  if [[ ${#existing[@]} -gt 0 ]]; then
+    tar --warning=no-file-changed -czf "$backup_dir/${app}-app.tar.gz" "${existing[@]}"
+  fi
+}
+
+if [[ -n "${FILEHUB_BACKUP_ONLY_APP:-}" ]]; then
+  backup_app_module "$FILEHUB_BACKUP_ONLY_APP"
+  echo "App-Modus abgeschlossen. Globaler Backup-Lauf wird uebersprungen."
+  echo "Lokaler Backup-Pfad: $backup_dir"
+  exit 0
+fi
+# --- Ende modularer Modus -----------------------------------------------------
+
 if docker inspect filehub-paperless-db >/dev/null 2>&1; then
   echo "Erzeuge Paperless Postgres-Dump."
   docker exec filehub-paperless-db pg_dump -U "$PAPERLESS_DBUSER" "$PAPERLESS_DBNAME" > "$backup_dir/paperless-postgres.sql"

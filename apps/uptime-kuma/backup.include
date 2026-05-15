@@ -1,0 +1,3 @@
+data/uptime-kuma
+apps/uptime-kuma/compose.yml
+apps/uptime-kuma/.env.example

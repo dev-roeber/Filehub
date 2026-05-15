@@ -1,0 +1,3 @@
+# Dozzle ist stateless (liest nur /var/run/docker.sock). Kein Datenverzeichnis.
+apps/dozzle/compose.yml
+apps/dozzle/.env.example

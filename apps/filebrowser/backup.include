@@ -1,0 +1,5 @@
+data/filebrowser/database
+data/filebrowser/root
+config/filebrowser
+apps/filebrowser/compose.yml
+apps/filebrowser/.env.example
