@@ -178,6 +178,9 @@ migrate-execute-stirling-pdf:
 migrate-execute-convertx:
     ./scripts/migrate-app.sh convertx --execute --yes-i-am-sure
 
+migrate-execute-uptime-kuma:
+    ./scripts/migrate-app.sh uptime-kuma --execute --yes-i-am-sure
+
 # Paperless Multi-Container-Cutover. Erfordert Wartungsfenster und alle
 # erweiterten Preflight-Checks. Nicht idempotent. Kein Auto-Rollback ohne
 # DB-Snapshot.
