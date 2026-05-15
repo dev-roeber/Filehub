@@ -14,11 +14,24 @@ Eingriffe werden hier durchgefuehrt. Es ergaenzt:
 
 ## 1. Ziel und Abgrenzung
 
-**Ziel**: Authentik (Postgres + Redis + Server + Worker) und das Gateway
-(`filehub-gateway`) werden aus `compose.auth.yml` (Repo-Root,
-Phase-1-Bootstrap) auf das modulare Layout in `infra/authentik/compose.yml`
-umgezogen. Endzustand: Authentik laeuft ausschliesslich aus dem Infra-
-Modul, gesteuert ueber `just auth-up` / `just auth-down`.
+**Ziel**: Authentik (Postgres + Redis + Server + Worker) wird aus
+`compose.auth.yml` (Repo-Root, Phase-1-Bootstrap) auf das modulare
+Layout in `infra/authentik/compose.yml` umgezogen. Endzustand:
+Authentik laeuft ausschliesslich aus dem Infra-Modul, gesteuert ueber
+`just auth-up` / `just auth-down`.
+
+**WICHTIG (Update 2026-05-15)**: Das Gateway (`filehub-gateway`) ist
+**nicht mehr Teil dieses Runbooks**. Es wird in einem **eigenen,
+vorgelagerten Cutover** in `infra/gateway/compose.yml` migriert, siehe
+`docs/GATEWAY_MIGRATION_RUNBOOK.md`. Reihenfolge ist verbindlich:
+
+1. Phasen A-F (App-Schicht) - erledigt 2026-05-15.
+2. **Gateway-Cutover** (separates Wartungsfenster).
+3. **Authentik-Cutover** (dieses Runbook, separates Wartungsfenster).
+
+Gateway und Authentik duerfen **nicht** im gleichen Wartungsfenster
+migriert werden. Doppelte Risiken (Auth-Provider + Reverse-Proxy
+gleichzeitig down) sind nicht akzeptabel.
 
 **Abgrenzung zu Phasen A-F**: Authentik ist **keine App** im Sinne von
 `apps/<id>/compose.yml` und wird **nicht** ueber `scripts/migrate-app.sh`
@@ -45,6 +58,7 @@ Alle Punkte muessen vor dem Cutover erfuellt sein:
 | Wartungsfenster angekuendigt | ja | Notification an alle Nutzer; alle Forward-Auth-Apps sind in dieser Zeit nicht erreichbar. |
 | `AUTHENTIK_ENABLED=true` in `.env` | ja | `grep ^AUTHENTIK_ENABLED= .env`. `.env.example` bleibt auf `false` (gewollt). |
 | Phasen A-F (inkl. Dozzle) abgeschlossen | ja | `just migration-status` -> alle 7 Apps `source=app`. |
+| **Gateway-Cutover abgeschlossen** | **ja** | `just gateway-migration-status` -> SOURCE=infra. Wenn SOURCE=root: erst Gateway-Cutover ausfuehren, siehe `docs/GATEWAY_MIGRATION_RUNBOOK.md`. |
 | `just registry-audit` ohne FAIL | ja | exit 0. |
 | `just runtime-audit` ohne FAIL | ja | erwarteter Authentik-Drift-WARN aus Phase-1-Bootstrap ist okay. |
 | Disk Free fuer pg_dump | ja | mind. 1-2 GB frei unter `backups/`, je nach Authentik-DB-Groesse. |
@@ -354,7 +368,7 @@ aufgefallen, die vor dem Live-Cutover geklaert werden muessen:
 
 | Aspekt | compose.auth.yml | infra/authentik/compose.yml | Bewertung |
 |---|---|---|---|
-| `filehub-gateway`-Service | **enthalten** (Caddy 2.8-alpine, Port 3080 -> 8080) | **fehlt** | offen: Gateway muss separat gehandhabt werden, siehe TODO oben |
+| `filehub-gateway`-Service | **enthalten** (Caddy 2.8-alpine, Port 3080 -> 8080) | **fehlt** | **GELOEST 2026-05-15**: Gateway hat jetzt eigenes Infra-Modul (`infra/gateway/compose.yml`). Cutover laeuft via `docs/GATEWAY_MIGRATION_RUNBOOK.md` und MUSS vor dem Authentik-Cutover stattfinden. |
 | `name:`-Direktive | fehlt (Projektname = Verzeichnisname `filehub`) | gesetzt auf `filehub` | konsistent, da Default ohnehin `filehub` |
 | `filehub_net`-Netzwerk | inline definiert ohne `external` | `external: true` | beabsichtigt: Infra-Modul nutzt Netzwerk, das von App-/Root-Compose erzeugt wird. Pruefen, dass `filehub_net` zum Start-Zeitpunkt schon existiert |
 | Bind-Mount-Pfade | `./data/authentik/*` | `../../data/authentik/*` | semantisch identisch, da `infra/authentik/compose.yml` zwei Verzeichnisse tief liegt. Trotzdem: automatisierter Diff-Check waere gut (siehe TODO Volume-Pfad-Audit) |
@@ -371,12 +385,11 @@ aufgefallen, die vor dem Live-Cutover geklaert werden muessen:
    durch `apps/<id>/compose.yml`-Stack oder durch
    `compose.yml`-Start erzeugt). Pruefung:
    `docker network ls | grep filehub_net`.
-2. Solange Gateway nicht ins Infra-Modul gezogen ist, ist das
-   Cutover-Ergebnis nicht "Authentik komplett aus
-   `infra/authentik/compose.yml`", sondern "Authentik-Stack aus
-   Infra-Modul + Gateway weiter aus `compose.auth.yml`".
-   Das ist ein Zwischenzustand, der dokumentiert werden muss, sobald
-   live geschaltet.
+2. **Gateway-Blocker adressiert** (2026-05-15): es existiert
+   `infra/gateway/compose.yml`. Reihenfolge ist jetzt verbindlich
+   `Gateway-Cutover -> Authentik-Cutover`, getrennte Wartungsfenster.
+   Authentik-Live darf nicht laufen, solange
+   `just gateway-migration-status` `SOURCE=root` meldet.
 3. Image-Tag `ghcr.io/goauthentik/server:2024.10` ist in beiden
    Dateien hardcodiert. Solange synchron, kein Problem; bei naechstem
    Image-Update beide Stellen oder Variable einfuehren.
