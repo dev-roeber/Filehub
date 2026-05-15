@@ -6,14 +6,21 @@ Justfile gebuendelt und arbeiten gegen die App-Registry `config/apps.yml`.
 ## Status und Audit
 
 ```
-just apps-status      # Compose-Status aller registrierten Apps
-just infra-status     # Status der Infrastruktur (Gateway, Backup, Authentik)
-just audit-report     # Konsistenzpruefung Registry <-> Filesystem <-> Compose
+just apps-status        # Compose-Status aller registrierten Apps
+just infra-status       # Status der Infrastruktur (Gateway, Backup, Authentik)
+just audit-report       # Gesamt-Auditreport (inkl. registry-audit am Ende)
+just registry-audit     # Reine Konsistenzpruefung Registry <-> Filesystem
+just registry-audit-quiet # nur WARN/FAIL + Summary
 ```
 
-Der Audit-Report deckt typische Drift-Faelle ab: App im Verzeichnis aber nicht
-in der Registry, Registry-Eintrag ohne `backup.include`, Caddy-Snippet aktiv
-ohne Gateway, fehlender Healthcheck.
+`registry-audit` prueft pro App: id-Regex, Verzeichnis, Pflicht-Artefakte
+(compose.yml, healthcheck.sh, backup.include, README.md) als FAIL, optionale
+Artefakte (.env.example, caddy.*.disabled) als WARN, Registry-Pfade
+(compose/health/backup_include), Port-Uniqueness und id-Sicherheit.
+Infra-Modul `authentik` wird separat geprueft.
+
+Exit-Code: 0 bei `FAIL=0` (auch mit WARNs), sonst 1. `audit-report` ruft
+`registry-audit --quiet` zusaetzlich auf und zeigt die letzten Zeilen.
 
 ## Single-App-Lifecycle
 

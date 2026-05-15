@@ -47,6 +47,9 @@ fi
 section "backup-report"
 ./scripts/backup-report.sh 2>&1 | tail -10
 
+section "registry-audit (Modularitaet)"
+./scripts/registry-audit.sh --quiet 2>&1 | tail -15 || true
+
 if [[ "$notify" -eq 1 && -f .secrets/ntfy.env ]]; then
   summary=$(./scripts/backup-report.sh 2>/dev/null)
   ./scripts/notify.sh --title "Filehub Audit-Report" \

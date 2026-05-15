@@ -136,6 +136,12 @@ storage-check:
 audit-report:
     ./scripts/audit-report.sh
 
+registry-audit:
+    ./scripts/registry-audit.sh
+
+registry-audit-quiet:
+    ./scripts/registry-audit.sh --quiet
+
 audit-report-notify:
     ./scripts/audit-report.sh --notify
 
