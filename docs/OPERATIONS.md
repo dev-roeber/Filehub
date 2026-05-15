@@ -39,26 +39,42 @@ wird empfohlen, einen App-spezifischen Snapshot anzulegen
 Das Gateway ist optional und steuert den externen Zugriff:
 
 ```
-just gateway-up
-just gateway-down
-just gateway-status
+just gateway-up          # startet filehub-gateway (compose.auth.yml)
+just gateway-down        # stoppt + entfernt Container
+just gateway-restart     # neustart ohne Recreate
+just gateway-logs        # tail -f des Gateway-Logs
+just gateway-reload      # docker restart (Caddy admin off, kein API-Reload)
+just gateway-status      # Container-Status + http-Probe
+just gateway-bootstrap-check  # read-only PRE/POST-BOOTSTRAP-Check
+```
+
+Caddy-Snippets pro App aktivieren/deaktivieren:
+
+```
+just caddy-list                # aktive Snippets
+just caddy-enable <app>        # apps/<app>/caddy.disabled -> enabled/
+just caddy-enable-auth <app>   # caddy.authentik.disabled (forward_auth)
+just caddy-disable <app>       # entfernt enabled/<app>.caddy
 ```
 
 Ohne Gateway sind die Apps weiterhin direkt unter `127.0.0.1:<port>`
-erreichbar. Welche Apps das Gateway proxied, ergibt sich aus den aktiven
-Caddy-Snippets (`caddy` statt `caddy.disabled`).
+erreichbar.
 
 ## Authentik (separat)
 
-Authentik wird unabhaengig vom Gateway verwaltet:
+Authentik wird unabhaengig vom Gateway verwaltet (Default: deaktiviert):
 
 ```
-just auth-up
+just auth-up        # nur wenn AUTHENTIK_ENABLED=true
 just auth-down
+just auth-restart
+just auth-logs
 just auth-status
 ```
 
-Default ist deaktiviert. Details siehe `docs/AUTHENTIK_OPTIONAL.md`.
+DB-Parameter fuer Backup koennen via ENV ueberschrieben werden
+(`AUTHENTIK_DB_HOST/PORT/USER/NAME`, `AUTHENTIK_REDIS_CONTAINER`).
+Details siehe `docs/AUTHENTIK_OPTIONAL.md`.
 
 ## Logs und Diagnose
 
